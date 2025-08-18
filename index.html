@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BJJ Timer (TV)</title>
+<style>
+  :root {
+    --bg: #000; --fg: #fff; --ok: #1db954; --warn: #ffae00; --end: #ff3b30;
+    --muted: #9aa0a6;
+  }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  .wrap { display:flex; flex-direction:column; height:100%; align-items:center; justify-content:space-between; padding: 2vh 3vw; }
+  .top { width:100%; display:flex; justify-content:space-between; align-items:center; font-size: 3vh; opacity:.9; }
+  .preset { color: var(--muted); }
+  .main { display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .time { font-weight:800; font-variant-numeric: tabular-nums; letter-spacing: .02em; line-height: 1; }
+  /* Scales to TV size */
+  @media (min-aspect-ratio: 16/9) {
+    .time { font-size: 28vh; }
+  }
+  @media (max-aspect-ratio: 16/9) {
+    .time { font-size: 22vw; }
+  }
+  .rounds { margin-top: 1vh; font-size: 4vh; color: var(--muted); }
+  .status { margin-top: 2vh; font-size: 5vh; font-weight:700; }
+  .controls { width:100%; display:flex; justify-content:center; gap: 2vw; flex-wrap:wrap; }
+  button {
+    font-size: 3.5vh; padding: 1vh 2vw; background:#111; color:#fff; border:1px solid #333; border-radius:.75vh;
+  }
+  button:active { transform: scale(.98); }
+  .ring {
+    width: 40vh; height: 40vh; border-radius: 50%;
+    border: .9vh solid #333; position: relative; box-shadow: inset 0 0 0 .9vh #111;
+    margin-bottom: 3vh;
+    background: conic-gradient(var(--ok) 0deg, #222 0deg);
+  }
+  .warn .time { color: var(--warn); }
+  .end .time { color: var(--end); }
+  .muted { color: var(--muted); }
+  .foot { font-size: 2.6vh; opacity:.7; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="top">
+    <div class="preset" id="presetLabel">Preset: 5:00 (Blue/White)</div>
+    <div class="muted">OK=Start/Pause • ◄/► Preset • ▲/▼ Time • Back=Reset • 0=Fullscreen</div>
+  </div>
+
+  <div class="main">
+    <div class="ring" id="ring"></div>
+    <div class="time" id="clock">05:00</div>
+    <div class="rounds" id="rounds">Round 1 / 1</div>
+    <div class="status" id="status">Ready</div>
+    <div class="controls">
+      <button id="prevPreset">◄ Preset</button>
+      <button id="minusMin">−1 min</button>
+      <button id="startPause">Start</button>
+      <button id="plusMin">+1 min</button>
+      <button id="nextPreset">Preset ►</button>
+      <button id="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="foot">BJJ Timer • v0.1</div>
+</div>
+
+<audio id="beep10" preload="auto"></audio>
+<audio id="horn" preload="auto"></audio>
+
+<script>
+/* ====== Presets (tweak these or add more) ====== */
+const PRESETS = [
+  { name: "5:00 (Blue/White)", runSec: 5*60, restSec: 60, rounds: 1 },
+  { name: "6:00 (Purple)",     runSec: 6*60, restSec: 60, rounds: 1 },
+  { name: "7:00 (Brown)",      runSec: 7*60, restSec: 60, rounds: 1 },
+  { name: "10:00 (Black)",     runSec:10*60, restSec: 60, rounds: 1 },
+  { name: "Sparring 5×5/1",    runSec: 5*60, restSec: 60, rounds: 5 },
+  { name: "Open Mat 3×3/1",    runSec: 3*60, restSec: 60, rounds: 3 },
+];
+
+/* ====== Elements ====== */
+const presetLabel = document.getElementById('presetLabel');
+const clockEl = document.getElementById('clock');
+const roundsEl = document.getElementById('rounds');
+const statusEl = document.getElementById('status');
+const ringEl = document.getElementById('ring');
+
+const btnPrev = document.getElementById('prevPreset');
+const btnNext = document.getElementById('nextPreset');
+const btnMinus = document.getElementById('minusMin');
+const btnPlus = document.getElementById('plusMin');
+const btnStartPause = document.getElementById('startPause');
+const btnReset = document.getElementById('reset');
+
+/* ====== State ====== */
+let presetIdx = 0;
+let runSec = PRESETS[0].runSec;
+let restSec = PRESETS[0].restSec;
+let roundsTotal = PRESETS[0].rounds;
+
+let remaining = runSec;       // seconds in current phase
+let inRest = false;
+let roundNum = 1;
+let running = false;
+let rafId = null;
+let tickLast = null;
+
+const TEN_SEC_WARN = 10;
+
+/* ====== Sounds (simple generated buffers if file fails) ====== */
+const beep10 = document.getElementById('beep10');
+const horn = document.getElementById('horn');
+// Tiny inline WAVs to avoid hosting files.
+beep10.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAA=='; // (silent placeholder)
+horn.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAA==';   // (silent placeholder)
+// If you have real files, set .src to your URLs above. Some TVs need a user gesture before audio—press Start once.
+
+function playBeep() { try { beep10.currentTime = 0; beep10.play(); } catch {} }
+function playHorn() { try { horn.currentTime = 0; horn.play(); } catch {} }
+
+/* ====== Helpers ====== */
+function fmt(sec) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function setPreset(i) {
+  presetIdx = (i + PRESETS.length) % PRESETS.length;
+  const p = PRESETS[presetIdx];
+  runSec = p.runSec; restSec = p.restSec; roundsTotal = p.rounds;
+  remaining = runSec; inRest = false; roundNum = 1; running = false;
+  tickLast = null; cancelAnimationFrame(rafId);
+  updateUI();
+}
+
+function updateRing() {
+  // Progress: run or rest separately
+  const total = inRest ? restSec : runSec;
+  const done = total - remaining;
+  const pct = Math.max(0, Math.min(1, done / total));
+  const deg = Math.floor(360 * pct);
+  const col = inRest ? '#0091ff' : (remaining <= TEN_SEC_WARN ? '#ffae00' : '#1db954');
+  ringEl.style.background = `conic-gradient(${col} ${deg}deg, #222 ${deg}deg)`;
+}
+
+function updateUI() {
+  clockEl.textContent = fmt(remaining);
+  roundsEl.textContent = `Round ${roundNum} / ${roundsTotal}${inRest ? '  (REST)' : ''}`;
+  presetLabel.textContent = `Preset: ${PRESETS[presetIdx].name}`;
+  statusEl.textContent = running ? (inRest ? 'Rest' : (remaining <= TEN_SEC_WARN ? 'Warning' : 'Running')) : 'Ready';
+  document.body.classList.toggle('warn', running && !inRest && remaining <= TEN_SEC_WARN);
+  document.body.classList.toggle('end', !running && remaining === 0 && !inRest);
+  updateRing();
+  btnStartPause.textContent = running ? 'Pause' : (remaining === 0 && roundNum === roundsTotal && !inRest) ? 'Restart' : 'Start';
+}
+
+function advancePhase() {
+  if (!inRest) {
+    // End of run -> signal horn, go to rest or next round
+    playHorn();
+    if (restSec > 0) {
+      inRest = true;
+      remaining = restSec;
+    } else {
+      // No rest; move to next round directly
+      roundNum++;
+      if (roundNum > roundsTotal) {
+        running = false;
+        return;
+      }
+      inRest = false;
+      remaining = runSec;
+    }
+  } else {
+    // End of rest -> next round
+    inRest = false;
+    roundNum++;
+    if (roundNum > roundsTotal) {
+      running = false;
+      return;
+    }
+    remaining = runSec;
+  }
+}
+
+function tick(ts) {
+  if (!tickLast) tickLast = ts;
+  const dt = (ts - tickLast) / 1000;
+  tickLast = ts;
+  if (running) {
+    const prev = remaining;
+    remaining = Math.max(0, remaining - dt);
+    // 10 sec warning (once)
+    if (!inRest && prev > TEN_SEC_WARN && remaining <= TEN_SEC_WARN) playBeep();
+    if (remaining === 0) {
+      advancePhase();
+      // If we stopped (finished all rounds)
+      if (!running) {
+        updateUI();
+        return;
+      }
+      // Reset phase timing baseline
+      tickLast = ts;
+    }
+    updateUI();
+    rafId = requestAnimationFrame(tick);
+  }
+}
+
+function startPause() {
+  if (running) {
+    running = false; cancelAnimationFrame(rafId); tickLast = null;
+  } else {
+    // If completely finished, restart current preset
+    if (remaining === 0 && roundNum === roundsTotal && !inRest) {
+      setPreset(presetIdx);
+    }
+    running = true; tickLast = null; rafId = requestAnimationFrame(tick);
+    // Attempt to keep screen awake via fullscreen
+    // (TVs usually don’t sleep while in the browser + active)
+  }
+  updateUI();
+}
+
+function resetAll() {
+  const p = PRESETS[presetIdx];
+  runSec = p.runSec; restSec = p.restSec; roundsTotal = p.rounds;
+  remaining = runSec; inRest = false; roundNum = 1; running = false;
+  cancelAnimationFrame(rafId); tickLast = null;
+  updateUI();
+}
+
+function changeTime(deltaMin) {
+  const delta = deltaMin * 60;
+  const isRunPhase = !inRest;
+  if (isRunPhase) {
+    runSec = Math.max(10, runSec + delta); // floor 10 sec
+    if (!running) remaining = runSec;
+  } else {
+    restSec = Math.max(0, restSec + delta);
+    if (!running) remaining = restSec;
+  }
+  updateUI();
+}
+
+function nextPreset() { setPreset(presetIdx + 1); }
+function prevPreset() { setPreset(presetIdx - 1); }
+
+function toggleFullscreen() {
+  const el = document.documentElement;
+  const isFS = document.fullscreenElement;
+  if (!isFS && el.requestFullscreen) el.requestFullscreen();
+  else if (document.exitFullscreen) document.exitFullscreen();
+}
+
+/* ====== Wire buttons ====== */
+btnPrev.onclick = prevPreset;
+btnNext.onclick = nextPreset;
+btnMinus.onclick = () => changeTime(-1);
+btnPlus.onclick = () => changeTime(1);
+btnStartPause.onclick = startPause;
+btnReset.onclick = resetAll;
+
+/* ====== Remote / Keyboard controls ====== */
+window.addEventListener('keydown', (e) => {
+  switch (e.key) {
+    case 'Enter': startPause(); break;
+    case ' ': startPause(); break;
+    case 'ArrowLeft': prevPreset(); break;
+    case 'ArrowRight': nextPreset(); break;
+    case 'ArrowUp': changeTime(1); break;
+    case 'ArrowDown': changeTime(-1); break;
+    case 'Backspace': case 'Escape': resetAll(); break;
+    case '0': toggleFullscreen(); break;
+    default: break;
+  }
+});
+
+/* ====== Init ====== */
+setPreset(0);
+updateUI();
+</script>
+</body>
+</html>
