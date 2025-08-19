@@ -14,6 +14,23 @@
 
   /* --- Stage (ring + logo, centered) --- */
   .stage { flex:1; display:flex; align-items:center; justify-content:center; z-index:1; }
+    /* Subtle tick marks every 10% to aid readability */
+  .ring::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      conic-gradient(from 0deg, rgba(255,255,255,.08) 0deg 2deg, transparent 2deg 36deg);
+    background-size: 36deg 36deg;  /* 10 ticks (360/10=36deg) */
+    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
+            mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
+    pointer-events:none;
+  }
+
+  /* Perfectly centered logo */
+  .logo {
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:100%; height:auto; opacity:.9; pointer-events:none;
+  }
   .ring {
     position: relative;
     width:min(70vh,80vw); height:min(70vh,80vw);
@@ -32,23 +49,7 @@
     -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
             mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
   }
-  /* Subtle tick marks every 10% to aid readability */
-  .ring::after{
-    content:"";
-    position:absolute; inset:0;
-    background:
-      conic-gradient(from 0deg, rgba(255,255,255,.08) 0deg 2deg, transparent 2deg 36deg);
-    background-size: 36deg 36deg;  /* 10 ticks (360/10=36deg) */
-    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
-            mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
-    pointer-events:none;
-  }
 
-  /* Perfectly centered logo */
-  .logo {
-    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-    width:100%; height:auto; opacity:.9; pointer-events:none;
-  }
 
   /* BIG status text in-ring */
   .badge {
