@@ -44,7 +44,7 @@
   /* High-contrast sweeping wedge (animation readability) */
   .ring::before{
     content:"";
-    position:absolute; inset:0;
+    position:absolute; inset:0; z-index:2;
     background: conic-gradient(var(--fight) var(--deg,0deg), var(--track) var(--deg,0deg));
     -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
             mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
@@ -79,7 +79,7 @@
   .timeOverlay {
     position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
     pointer-events:none; z-index:3;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Roboto Mono", "DM Mono", monospace;
+    font-family: system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
     font-weight:1200; line-height:1; letter-spacing:0; font-variant-numeric: tabular-nums;
     font-size: clamp(22vh, 28vw, 60vh);
     opacity:.6;
