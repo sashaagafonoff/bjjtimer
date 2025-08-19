@@ -9,49 +9,47 @@
     --bg:#000; --fg:#fff; --fight:#1db954; --rest:#ffae00; --end:#ff3b30; --muted:#9aa0a6;
     --track:#141414; --trail:#262626;
   }
-  html,body { height:100%; margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
-  .wrap { position:relative; display:flex; flex-direction:column; height:100%; gap:1.5vh; padding:2vh 3vw; overflow:hidden; }
+  html,body { height:100%; margin:0; background:var(--bg); color:var(--fg);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { position:relative; display:flex; flex-direction:column; height:100%;
+    gap:1.5vh; padding:2vh 3vw; overflow:hidden; }
 
-  /* --- Stage (ring + logo, centered) --- */
+  /* ===== Stage (ring + logo centered) ===== */
   .stage { flex:1; display:flex; align-items:center; justify-content:center; z-index:1; }
-    /* Subtle tick marks every 10% to aid readability */
-  .ring::after{
-    content:"";
-    position:absolute; inset:0;
-    background:
-      conic-gradient(from 0deg, rgba(255,255,255,.08) 0deg 2deg, transparent 2deg 36deg);
-    background-size: 36deg 36deg;  /* 10 ticks (360/10=36deg) */
-    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
-            mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
-    pointer-events:none;
-  }
-
-  /* Perfectly centered logo */
-  .logo {
-    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-    width:100%; height:auto; opacity:.5; pointer-events:none; z-index:3;
-  }
   .ring {
     position: relative;
     width:min(70vh,80vw); height:min(70vh,80vw);
     border-radius:50%;
     overflow:hidden;
-    /* Base track (dark), the progress sweep is drawn by .ring::before */
     background: radial-gradient(circle at 50% 50%, #000 0 62%, transparent 62.1%),
                 conic-gradient(var(--trail) 0turn, var(--trail) 1turn);
     box-shadow: 0 0 0 1.2vh #111 inset, 0 0 30px rgba(0,0,0,.6) inset;
   }
-  /* High-contrast sweeping wedge (animation readability) */
   .ring::before{
     content:"";
-    position:absolute; inset:0; z-index:4;
+    position:absolute; inset:0;
     background: conic-gradient(var(--fight) var(--deg,0deg), var(--track) var(--deg,0deg));
     -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
             mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
   }
+  .ring::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      conic-gradient(from 0deg, rgba(255,255,255,.08) 0deg 2deg, transparent 2deg 36deg);
+    background-size: 36deg 36deg;
+    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
+            mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
+    pointer-events:none;
+  }
 
+  /* Perfect center logo */
+  .logo {
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:40%; height:auto; opacity:.9; pointer-events:none;
+  }
 
-  /* BIG status text in-ring */
+  /* Big status text */
   .badge {
     position:absolute; left:50%; bottom:8%; transform:translateX(-50%);
     text-align:center; font-weight:900; letter-spacing:.02em;
@@ -59,44 +57,60 @@
     text-shadow: 0 0 14px rgba(0,0,0,.65);
   }
 
-  /* Round info under stage */
   .subinfo { text-align:center; margin-top:.5vh; font-size:3.8vh; color:var(--muted); z-index:2; }
 
-  /* Primary controls */
-  .controls { display:flex; justify-content:center; gap:2vw; flex-wrap:wrap; margin-top:.5vh; z-index:2; }
-  .controls button, .settings button {
-    font-size:3.2vh; padding:1vh 2vw; background:#111; color:#fff; border:1px solid #333; border-radius:.8vh;
+  /* ===== Floating HUDs ===== */
+  .hud { position: fixed; top: 2vh; z-index: 5; display:flex; flex-direction:column; gap:1vh; }
+  .hud .box {
+    background: rgba(0,0,0,.55); border: 1px solid #333; border-radius: .8vh;
+    padding: 1.2vh 1.4vw; color:#ddd; backdrop-filter: blur(4px);
   }
-  .controls button:active, .settings button:active { transform:scale(.98); }
+  .hud.right { right: 2vw; align-items:flex-end; }
+  .hud.right .box { max-width: 30vw; font-size: 2.4vh; }
+  .hud.right .breaks { font-weight:700; color:#fff; font-size:2.6vh; }
 
-  /* Settings */
-  .settings { display:flex; justify-content:center; gap:4vw; flex-wrap:wrap; align-items:flex-end; margin-top:.5vh; z-index:2; }
-  .settings .group { text-align:center; }
-  .settings .label { font-size:2.4vh; color:var(--muted); }
-  .settings .value { font-size:4vh; margin:.4vh 0 1vh; }
+  .hud.left { left: 2vw; align-items:flex-start; }
+  .hud.left .box { font-size: 2.6vh; }
+  .hud.left .btns { display:flex; flex-direction:column; gap:.8vh; }
+  .hud.left button {
+    font-size:3vh; padding:1vh 2vw; background:#111; color:#fff;
+    border:1px solid #333; border-radius:.8vh; width: 18vw; max-width: 320px;
+    text-align:center;
+  }
+  .hud.left button:active { transform: scale(.98); }
+  .hud.left .row { display:flex; gap:.6vw; align-items:center; margin-top:.6vh; }
+  .hud.left .label { color:#cfd3d7; min-width: 8.5vw; }
+  .hud.left .value { font-weight:700; color:#fff; min-width: 6vw; text-align:center; }
+  .hud.left .mini button { font-size:2.6vh; padding:.6vh 1vw; width:auto; }
 
-  /* Giant full-screen timer overlay — fixed width monospace to avoid jitter */
+  /* ===== Full-screen timer overlay with fixed cells (no jitter) ===== */
   .timeOverlay {
     position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
     pointer-events:none; z-index:3;
-    font-family: system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    font-weight:1200; line-height:1; letter-spacing:0; font-variant-numeric: tabular-nums;
+    font-weight:900; line-height:1; letter-spacing:0; font-variant-numeric: tabular-nums;
     font-size: clamp(22vh, 28vw, 60vh);
     opacity:.6;
     text-shadow: 0 0 25px rgba(0,0,0,.7), 0 0 60px rgba(0,0,0,.35);
-    color:#ccc; /* paused/inactive default */
+    color:#fff; /* paused/inactive default */
   }
-  /* Fix total width so digits never shift horizontally (we use MM:SS max) */
-  .timeOverlay .fixed {
-    width: 5ch; text-align:center;  /* "MM:SS" = 5 characters */
+  .timeGrid { display:flex; align-items:center; justify-content:center; gap:.08em; }
+  .digit, .sep {
+    display:flex; align-items:center; justify-content:center;
+    height:1em;
   }
+  /* Equal space for each NUMBER (4 digits). Colon is its own narrow cell. */
+  .digit { width: .78em; }
+  .sep   { width: .38em; opacity:.9; }
 
-  /* State tints for overlay */
+  /* State colors */
   .fighting .timeOverlay { color: var(--fight); }
   .resting  .timeOverlay { color: var(--rest); }
   .ended    .timeOverlay { color: var(--end); }
 
-  .foot { text-align:center; font-size:2.4vh; color:var(--muted); margin-top:auto; z-index:2; }
+  /* Dynamic ring tint */
+  .fighting .ring::before { background: conic-gradient(var(--fight) var(--deg,0deg), var(--track) var(--deg,0deg)); }
+  .resting  .ring::before { background: conic-gradient(var(--rest)  var(--deg,0deg), var(--track) var(--deg,0deg)); }
+  .ended    .ring::before { background: conic-gradient(var(--end)   var(--deg,0deg), var(--track) var(--deg,0deg)); }
 
   /* Pre-start overlay */
   .prestart { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.55); z-index:4; }
@@ -104,36 +118,48 @@
   .pretitle { font-size:4vh; color:#cde; margin-bottom:1vh; }
   .pretime { font-size:14vh; font-weight:800; }
 
-  /* Floating HUD on right */
-  .hud {
-    position: fixed; right: 2vw; top: 2vh; z-index: 5;
-    display:flex; flex-direction:column; gap:1vh; align-items:flex-end;
-  }
-  .hud .box {
-    background: rgba(0,0,0,.55);
-    border: 1px solid #333; border-radius: .8vh;
-    padding: 1.2vh 1.4vw; font-size: 2.6vh; color:#ddd;
-    backdrop-filter: blur(4px);
-    max-width: 30vw;
-  }
-  .hud .breaks { font-weight:700; color:#fff; }
-  .hud .tips { color:#cfd3d7; font-size: 2.4vh; line-height: 1.3; }
-
-  /* Dynamic ring color via body state (also used in ::before) */
-  .fighting .ring::before { background: conic-gradient(var(--fight) var(--deg,0deg), var(--track) var(--deg,0deg)); }
-  .resting  .ring::before { background: conic-gradient(var(--rest) var(--deg,0deg),  var(--track) var(--deg,0deg)); }
-  .ended    .ring::before { background: conic-gradient(var(--end) var(--deg,0deg),   var(--track) var(--deg,0deg)); }
+  .foot { text-align:center; font-size:2.4vh; color:var(--muted); margin-top:auto; z-index:2; }
 </style>
 </head>
 <body>
-  <!-- Floating HUD (right side) -->
-  <aside class="hud">
+  <!-- RIGHT HUD: Breaks + Tips -->
+  <aside class="hud right">
     <div class="box breaks" id="breaksBox">Breaks: 1:00</div>
     <div class="box tips">
       OK/Enter = Start/Pause<br/>
       Back/Esc = Reset<br/>
       0 = Fullscreen<br/>
       ▲/▼ = ±1 min &nbsp;•&nbsp; ◄/► = ±1 round
+    </div>
+  </aside>
+
+  <!-- LEFT HUD: Vertical controls + settings -->
+  <aside class="hud left">
+    <div class="box">
+      <div class="btns">
+        <button id="startPause">Start</button>
+        <button id="reset">Reset</button>
+        <button id="fullscreen">Fullscreen</button>
+      </div>
+
+      <div class="row mini" style="margin-top:1.2vh;">
+        <div class="label">Match</div>
+        <div class="value" id="matchLenLbl">05:00</div>
+        <button id="minusMin">−1m</button>
+        <button id="plusMin">+1m</button>
+      </div>
+
+      <div class="row mini">
+        <div class="label">Rounds</div>
+        <div class="value" id="roundsLbl">5</div>
+        <button id="minusRnd">−1</button>
+        <button id="plusRnd">+1</button>
+      </div>
+
+      <div class="row" style="margin-top:.8vh;">
+        <div class="label">Break</div>
+        <div class="value" id="breakLbl">01:00</div>
+      </div>
     </div>
   </aside>
 
@@ -146,39 +172,19 @@
     </div>
 
     <div class="subinfo" id="rounds">Round 1 / 5</div>
-
-    <!-- PRIMARY CONTROLS -->
-    <div class="controls">
-      <button id="startPause">Start</button>
-      <button id="reset">Reset</button>
-      <button id="fullscreen">Fullscreen</button>
-    </div>
-
-    <!-- SETTINGS -->
-    <div class="settings">
-      <div class="group">
-        <div class="label">Match Time</div>
-        <div class="value" id="matchLenLbl">5:00</div>
-        <button id="minusMin">−1 min</button>
-        <button id="plusMin">+1 min</button>
-      </div>
-      <div class="group">
-        <div class="label">Rounds</div>
-        <div class="value" id="roundsLbl">5</div>
-        <button id="minusRnd">−1</button>
-        <button id="plusRnd">+1</button>
-      </div>
-      <div class="group">
-        <div class="label">Break</div>
-        <div class="value">1:00 (fixed)</div>
-      </div>
-    </div>
-
-    <div class="foot">BJJ Timer • v0.7</div>
+    <div class="foot">BJJ Timer • v0.8</div>
   </div>
 
-  <!-- Giant full-screen timer (fixed width monospace to stop jitter) -->
-  <div class="timeOverlay"><div class="fixed" id="clock">05:00</div></div>
+  <!-- Giant full-screen timer (fixed cells) -->
+  <div class="timeOverlay" aria-hidden="true">
+    <div class="timeGrid">
+      <div class="digit" id="d1">0</div>
+      <div class="digit" id="d2">5</div>
+      <div class="sep">:</div>
+      <div class="digit" id="d3">0</div>
+      <div class="digit" id="d4">0</div>
+    </div>
+  </div>
 
   <!-- Pre-start overlay -->
   <div class="prestart" id="preOverlay" aria-hidden="true">
@@ -208,14 +214,15 @@ function beep(){ tone(1000,180,'sine',0.26); }
 function bell(){ tone(660,250,'triangle',0.32); setTimeout(()=>tone(440,350,'sine',0.26),40); setTimeout(()=>tone(880,200,'sine',0.18),60); }
 
 /* ===== Elements ===== */
-const clockEl=document.getElementById('clock');       // fixed-width inner div
 const roundsEl=document.getElementById('rounds');
 const badgeEl=document.getElementById('phaseBadge');
 const matchLenLbl=document.getElementById('matchLenLbl');
 const roundsLbl=document.getElementById('roundsLbl');
+const breakLbl=document.getElementById('breakLbl');
 const ringEl=document.getElementById('ring');
 const preOverlay=document.getElementById('preOverlay');
 const preClock=document.getElementById('preClock');
+const breaksBox=document.getElementById('breaksBox');
 
 const btnMinus=document.getElementById('minusMin');
 const btnPlus=document.getElementById('plusMin');
@@ -225,6 +232,12 @@ const btnStart=document.getElementById('startPause');
 const btnReset=document.getElementById('reset');
 const btnFS=document.getElementById('fullscreen');
 
+/* Timer digits */
+const d1=document.getElementById('d1');
+const d2=document.getElementById('d2');
+const d3=document.getElementById('d3');
+const d4=document.getElementById('d4');
+
 /* ===== Config / State ===== */
 const BREAK_SEC=60, PRESTART_SEC=10;
 let matchSec=5*60, roundsTotal=5, roundNum=1;
@@ -233,49 +246,58 @@ let remaining=matchSec, running=false;
 let rafId=null, lastTs=null;
 
 /* ===== Helpers ===== */
-function fmt(sec){
-  sec=Math.max(0,Math.floor(sec));
-  const m=Math.floor(sec/60), s=sec%60;
-  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; // "MM:SS"
-}
+function fmt(sec){ sec=Math.max(0,Math.floor(sec)); const m=Math.floor(sec/60), s=sec%60; return {m,s,txt:`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`}; }
 function progressDeg(){
   const total = phase==='run' ? matchSec : phase==='break' ? BREAK_SEC : phase==='pre' ? PRESTART_SEC : 1;
   const done = total - remaining;
   const pct = Math.max(0,Math.min(1, done/total));
   return Math.floor(360*pct);
 }
-function updateRing(){
-  const deg = progressDeg();
-  ringEl.style.setProperty('--deg', deg+'deg');
+function updateDigits(sec){
+  const t = fmt(sec);
+  const mm = String(t.m).padStart(2,'0');
+  const ss = String(t.s).padStart(2,'0');
+  d1.textContent = mm[0];
+  d2.textContent = mm[1];
+  d3.textContent = ss[0];
+  d4.textContent = ss[1];
 }
 
 /* ===== UI ===== */
+function updateRing(){
+  ringEl.style.setProperty('--deg', progressDeg()+'deg');
+}
 function updateUI(){
-  // Time text (fixed-width div avoids jitter)
-  clockEl.textContent=fmt(remaining);
+  // digits overlay
+  updateDigits(remaining);
 
-  // Round + labels
-  roundsEl.textContent=`Round ${Math.min(roundNum,roundsTotal)} / ${roundsTotal}` + (phase==='break'?'  (REST)':'');
-  matchLenLbl.textContent=fmt(matchSec);
-  roundsLbl.textContent=String(roundsTotal);
+  // side labels
+  const t = fmt(remaining);
+  roundsEl.textContent = `Round ${Math.min(roundNum,roundsTotal)} / ${roundsTotal}` + (phase==='break'?'  (REST)':'');
+  matchLenLbl.textContent = fmt(matchSec).txt;
+  roundsLbl.textContent = String(roundsTotal);
+  breakLbl.textContent = fmt(BREAK_SEC).txt;
+  breaksBox.textContent = `Breaks: ${fmt(BREAK_SEC).txt}`;
 
-  // Big status text
-  badgeEl.textContent=
+  // status text
+  badgeEl.textContent =
     phase==='pre'  ? 'GET READY' :
     phase==='run'  ? 'FIGHT'     :
     phase==='break'? 'REST'      :
     phase==='done' ? 'FINISHED'  : 'READY';
 
-  // Body state classes (color the overlay + ring)
+  // body classes for color tint
   document.body.classList.remove('fighting','resting','ended');
   if(phase==='run') document.body.classList.add('fighting');
   else if(phase==='break') document.body.classList.add('resting');
   else if(phase==='done') document.body.classList.add('ended');
 
-  // Buttons + overlays
-  btnStart.textContent = running ? 'Pause' : (phase==='done' ? 'Restart' : 'Start');
+  // pre-start overlay
   preOverlay.style.display = (phase==='pre') ? 'flex' : 'none';
-  preClock.textContent = fmt(remaining);
+  preClock.textContent = fmt(remaining).txt;
+
+  // button label
+  btnStart.textContent = running ? 'Pause' : (phase==='done' ? 'Restart' : 'Start');
 
   updateRing();
 }
@@ -283,36 +305,20 @@ function updateUI(){
 /* ===== Flow control ===== */
 function startPre(){
   ensureAudio();
-  phase='pre';
-  remaining=PRESTART_SEC;
-  running=true;
-  lastTs=null;
+  phase='pre'; remaining=PRESTART_SEC; running=true; lastTs=null;
   rafId=requestAnimationFrame(loop);
   updateUI();
 }
-function startRun(){
-  phase='run';
-  remaining=matchSec;
-  lastTs=null;
-  updateUI();
-}
+function startRun(){ phase='run'; remaining=matchSec; lastTs=null; updateUI(); }
 function nextOrFinish(){
-  if(roundNum>=roundsTotal){
-    phase='done';
-    running=false;
-  }else{
-    phase='break';
-    remaining=BREAK_SEC;
-    lastTs=null;
-  }
+  if(roundNum>=roundsTotal){ phase='done'; running=false; }
+  else { phase='break'; remaining=BREAK_SEC; lastTs=null; }
   updateUI();
 }
 function loop(ts){
   if(!running) return;
   if(lastTs==null) lastTs=ts||performance.now();
-  const now=ts||performance.now();
-  const dt=(now-lastTs)/1000;
-  lastTs=now;
+  const now=ts||performance.now(), dt=(now-lastTs)/1000; lastTs=now;
 
   const prev=remaining;
   remaining=Math.max(0,remaining-dt);
@@ -321,10 +327,10 @@ function loop(ts){
     const psec=Math.ceil(prev), nsec=Math.ceil(remaining);
     if([3,2,1].includes(psec) && nsec<psec) beep();
     if(remaining===0){ bell(); startRun(); }
-  }else if(phase==='run'){
-    if(prev>10 && remaining<=10) beep();        // single 10s warning
+  } else if(phase==='run'){
+    if(prev>10 && remaining<=10) beep();
     if(remaining===0){ bell(); roundNum++; nextOrFinish(); }
-  }else if(phase==='break'){
+  } else if(phase==='break'){
     if(remaining===0){ bell(); phase='run'; remaining=matchSec; lastTs=now; }
   }
 
@@ -334,22 +340,16 @@ function loop(ts){
 
 /* ===== Controls ===== */
 function startPause(){
-  if(running){
-    running=false; cancelAnimationFrame(rafId); lastTs=null;
-  }else{
+  if(running){ running=false; cancelAnimationFrame(rafId); lastTs=null; }
+  else{
     if(phase==='ready' || phase==='done'){ resetAll(); startPre(); }
     else { running=true; lastTs=null; rafId=requestAnimationFrame(loop); }
   }
   updateUI();
 }
 function resetAll(){
-  running=false;
-  cancelAnimationFrame(rafId);
-  lastTs=null;
-  phase='ready';
-  roundNum=1;
-  remaining=matchSec;
-  updateUI();
+  running=false; cancelAnimationFrame(rafId); lastTs=null;
+  phase='ready'; roundNum=1; remaining=matchSec; updateUI();
 }
 function changeMinutes(d){
   matchSec=Math.max(60,Math.min(20*60,matchSec+d*60)); // 1–20 min
@@ -367,7 +367,7 @@ function toggleFS(){
   else if(document.exitFullscreen) document.exitFullscreen();
 }
 
-/* Wire buttons */
+/* Wire up */
 btnMinus.onclick=()=>changeMinutes(-1);
 btnPlus.onclick =()=>changeMinutes(1);
 btnMinusR.onclick=()=>changeRounds(-1);
