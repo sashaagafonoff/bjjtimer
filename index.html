@@ -1,324 +1,141 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BJJ Timer (TV)</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BJJ Timer</title>
 <style>
-  :root{
-    --bg:#000; --fg:#fff;
-    --grey:#9aa0a6; --purple:#9b5de5; --green:#1db954; --orange:#ffae00; --red:#ff3b30; --blue:#0091ff;
-    --track:#141414; --trail:#262626;
-    --inner:30%;        /* inner hole radius; 30% => ~70% thick band */
-    --tint:#9aa0a6;     /* current state color (updated by JS) */
-    --deg:360deg;       /* remaining sweep (updated by JS) */
-  }
-  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
-
-  /* Top-center heading */
-  .topTitle{
-    position:fixed; top:1.5vh; left:50%; transform:translateX(-50%);
-    z-index:6; font-weight:900; letter-spacing:.03em; text-align:center;
-    font-size:clamp(4vh, 5vw, 7vh);
-    text-shadow:0 0 14px rgba(0,0,0,.6);
-  }
-
-  .wrap{position:relative;display:flex;flex-direction:column;height:100%;
-    gap:1.5vh;padding:6vh 3vw 2vh; overflow:hidden;}
-
-  /* ===== Stage (ring + logo centered) ===== */
-  .stage{flex:1;display:flex;align-items:center;justify-content:center;z-index:1;}
-  .ring{
-    position:relative;width:min(70vh,80vw);height:min(70vh,80vw);border-radius:50%;overflow:hidden;
-    background:
-      radial-gradient(circle at 50% 50%, #000 0 var(--inner), transparent calc(var(--inner) + 0.1%)),
-      conic-gradient(var(--trail) 0turn, var(--trail) 1turn);
-    box-shadow:0 0 0 1.2vh #111 inset, 0 0 30px rgba(0,0,0,.6) inset;
-    transform-origin:center;
-  }
-  /* Remaining wedge (shrinks from 360deg → 0deg) */
-  .ring::before{
-    content:"";position:absolute;inset:0;
-    background:conic-gradient(var(--tint) 0deg var(--deg), var(--track) var(--deg) 360deg);
-    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 var(--inner), #000 calc(var(--inner) + 0.1%));
-            mask: radial-gradient(circle at 50% 50%, transparent 0 var(--inner), #000 calc(var(--inner) + 0.1%));
-  }
-  /* Readability ticks (~every 10%) */
-  .ring::after{
-    content:"";position:absolute;inset:0;
-    background:conic-gradient(from 0deg, rgba(255,255,255,.08) 0deg 2deg, transparent 2deg 36deg);
-    background-size:36deg 36deg;
-    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 var(--inner), #000 calc(var(--inner) + 0.1%));
-            mask: radial-gradient(circle at 50% 50%, transparent 0 var(--inner), #000 calc(var(--inner) + 0.1%));
-    pointer-events:none;
-  }
-
-  /* Perfect center logo */
-  .logo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-    width:40%;height:auto;opacity:.9;pointer-events:none;}
-
-  .subinfo{text-align:center;margin-top:.5vh;font-size:3.8vh;color:#cfd3d7;z-index:2;}
-  .foot{text-align:center;font-size:2.4vh;color:#9aa0a6;margin-top:auto;z-index:2;}
-
-  /* ===== Floating HUDs ===== */
-  .hud{position:fixed;z-index:5;display:flex;flex-direction:column;gap:1vh;}
-  .hud .box{background:rgba(0,0,0,.55);border:1px solid #333;border-radius:.8vh;
-    padding:1.2vh 1.4vw;color:#ddd;backdrop-filter:blur(4px);}
-  .hud.right{right:2vw;top:2vh;align-items:flex-end;}
-  .hud.right .box{max-width:30vw;font-size:2.4vh;}
-
-  /* LEFT: top container = buttons; bottom container = settings */
-  .hud.leftTop{left:2vw;top:2vh;align-items:flex-start;}
-  .hud.leftBottom{left:2vw;bottom:2vh;align-items:flex-start;}
-
-  .hud.leftTop .btns{display:flex;flex-direction:column;gap:.8vh;}
-  .hud.leftTop button{
-    font-size:3vh;padding:1vh 2vw;background:#111;color:#fff;border:1px solid #333;border-radius:.8vh;
-    width:18vw;max-width:320px;text-align:center;
-  }
-  .hud.leftTop button:active{transform:scale(.98);}
-
-  .hud.leftBottom .row{display:flex;gap:.6vw;align-items:center;margin-top:.6vh;}
-  .hud.leftBottom .label{color:#cfd3d7;min-width:8.5vw;}
-  .hud.leftBottom .value{font-weight:700;color:#fff;min-width:6vw;text-align:center;}
-  .hud.leftBottom .mini button{font-size:2.6vh;padding:.6vh 1vw;width:auto;background:#111;color:#fff;border:1px solid #333;border-radius:.6vh;}
-
-  /* ===== Full-screen timer overlay with fixed cells (no jitter) ===== */
-  .timeOverlay{
-    position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    pointer-events:none;z-index:3;font-weight:900;line-height:1;letter-spacing:0;
-    font-size:clamp(22vh,28vw,60vh);opacity:.6;
-    text-shadow:0 0 25px rgba(0,0,0,.7),0 0 60px rgba(0,0,0,.35);
-    color:var(--tint);  /* color follows --tint */
-  }
-  .timeGrid{display:flex;align-items:center;justify-content:center;gap:.08em;}
-  .digit,.sep{display:flex;align-items:center;justify-content:center;height:1em;}
-  .digit{width:.78em;} .sep{width:.38em;opacity:.9;}
-
-  /* ===== Urgency animations (last 10s in fight/rest) ===== */
-  @keyframes pulseRing {
-    0%,100% { transform: scale(1); }
-    50%     { transform: scale(1.06); }
-  }
-  @keyframes flashTitle {
-    0%,100% { opacity: 1; }
-    50%     { opacity: .45; }
-  }
-  body.urgent .ring { animation: pulseRing 1s ease-in-out infinite; }
-  body.urgent .topTitle { animation: flashTitle 1s linear infinite; }
-  /* optional: blink the colon subtly */
-  body.urgent .sep { animation: flashTitle 1s steps(2,end) infinite; }
+:root{
+  --inner:30%;
+  --deg:360deg;
+  --tint:#9aa0a6;
+  --track:#141414;
+  --trail:#262626;
+}
+body{margin:0;height:100%;background:#000;color:#fff;font-family:sans-serif;overflow:hidden;}
+.topTitle{position:fixed;top:1.5vh;left:50%;transform:translateX(-50%);
+  font-size:6vh;font-weight:900;text-shadow:0 0 14px #000;z-index:6;}
+.stage{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);}
+.ring{width:min(70vh,80vw);height:min(70vh,80vw);border-radius:50%;
+  position:relative;
+  background:radial-gradient(circle,#000 0 var(--inner),transparent calc(var(--inner)+.1%)),
+             conic-gradient(var(--trail) 0turn,var(--trail) 1turn);}
+.ring::before{content:"";position:absolute;inset:0;
+  background:conic-gradient(var(--tint) 0deg var(--deg),var(--track) var(--deg) 360deg);
+  -webkit-mask:radial-gradient(circle,transparent 0 var(--inner),#000 calc(var(--inner)+.1%));
+          mask:radial-gradient(circle,transparent 0 var(--inner),#000 calc(var(--inner)+.1%));}
+.logo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:40%;opacity:.9;}
+.timeOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:28vw;font-weight:900;color:var(--tint);opacity:.65;
+  text-shadow:0 0 25px #000,0 0 60px #000;}
+/* Animations for urgency */
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
+@keyframes flash{0%,100%{opacity:1;}50%{opacity:.4;}}
+body.urgent .ring{animation:pulse 1s infinite;}
+body.urgent .topTitle{animation:flash 1s infinite;}
+/* simple HUDs */
+.hud{position:fixed;z-index:10;font-size:2vh;}
+.leftTop{top:2vh;left:2vw;}
+.leftBottom{bottom:2vh;left:2vw;}
+.right{top:2vh;right:2vw;max-width:30vw;}
+button{font-size:2.5vh;margin:.4vh; background:#111;color:#fff;border:1px solid #333;border-radius:.6vh;padding:.6vh 1vw;}
+.value{font-weight:700;}
 </style>
 </head>
 <body>
-  <!-- Top-center heading -->
-  <div class="topTitle" id="title">READY</div>
-
-  <!-- RIGHT HUD: tips only -->
-  <aside class="hud right">
-    <div class="box tips">
-      OK/Enter = Start/Pause<br/>
-      Back/Esc = Reset<br/>
-      0 = Fullscreen<br/>
-      ▲/▼ = ±1 min &nbsp;•&nbsp; ◄/► = ±1 round
-    </div>
-  </aside>
-
-  <!-- LEFT TOP HUD: main buttons -->
-  <aside class="hud leftTop">
-    <div class="box">
-      <div class="btns">
-        <button id="startPause">Start</button>
-        <button id="reset">Reset</button>
-        <button id="fullscreen">Fullscreen</button>
-      </div>
-    </div>
-  </aside>
-
-  <!-- LEFT BOTTOM HUD: settings -->
-  <aside class="hud leftBottom">
-    <div class="box">
-      <div class="row mini" style="margin-top:.2vh;">
-        <div class="label">Match</div>
-        <div class="value" id="matchLenLbl">05:00</div>
-        <div class="mini">
-          <button id="minusMin">−1m</button>
-          <button id="plusMin">+1m</button>
-        </div>
-      </div>
-      <div class="row mini">
-        <div class="label">Rounds</div>
-        <div class="value" id="roundsLbl">5</div>
-        <div class="mini">
-          <button id="minusRnd">−1</button>
-          <button id="plusRnd">+1</button>
-        </div>
-      </div>
-      <div class="row" style="margin-top:.8vh;">
-        <div class="label">Break</div>
-        <div class="value" id="breakLbl">01:00</div>
-      </div>
-    </div>
-  </aside>
-
-  <div class="wrap">
-    <div class="stage">
-      <div class="ring" id="ring" style="--deg:360deg">
-        <img src="logo.png" class="logo" alt="Logo" onerror="this.style.display='none'"/>
-      </div>
-    </div>
-    <div class="subinfo" id="rounds">Round 1 / 5</div>
-    <div class="foot">BJJ Timer • v1.1</div>
-  </div>
-
-  <!-- Giant full-screen timer (fixed cells) -->
-  <div class="timeOverlay" aria-hidden="true">
-    <div class="timeGrid">
-      <div class="digit" id="d1">0</div>
-      <div class="digit" id="d2">5</div>
-      <div class="sep">:</div>
-      <div class="digit" id="d3">0</div>
-      <div class="digit" id="d4">0</div>
-    </div>
-  </div>
+<div class="topTitle" id="title">READY</div>
+<div class="stage">
+  <div class="ring" id="ring"><img src="logo.png" class="logo" onerror="this.remove()"/></div>
+</div>
+<div class="timeOverlay" id="time">05:00</div>
+<!-- HUDs -->
+<div class="hud leftTop">
+  <button id="startPause">Start</button>
+  <button id="reset">Reset</button>
+  <button id="fullscreen">Fullscreen</button>
+</div>
+<div class="hud leftBottom">
+  <div>Match <span class="value" id="matchLbl">05:00</span>
+    <button id="minusMin">-1m</button><button id="plusMin">+1m</button></div>
+  <div>Rounds <span class="value" id="roundLbl">5</span>
+    <button id="minusRnd">-1</button><button id="plusRnd">+1</button></div>
+  <div>Break <span class="value" id="breakLbl">01:00</span></div>
+</div>
+<div class="hud right">
+  OK/Enter=Start/Pause<br/>Back/Esc=Reset<br/>0=Fullscreen
+</div>
 
 <script>
-/* ===== Audio (WebAudio): 3-2-1 beeps + bell ===== */
-let audioCtx=null;
-function ensureAudio(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }
-function tone(freq=880,ms=200,type='sine',gain=0.22){
-  try{
-    ensureAudio();
-    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
-    o.type=type; o.frequency.value=freq; g.gain.value=gain;
-    o.connect(g); g.connect(audioCtx.destination);
-    const t=audioCtx.currentTime; o.start(t);
-    g.gain.setValueAtTime(gain,t);
-    g.gain.exponentialRampToValueAtTime(0.0001,t+ms/1000);
-    o.stop(t+ms/1000+0.02);
-  }catch{}
-}
-function beep(){ tone(1000,180,'sine',0.26); }
-function bell(){ tone(660,250,'triangle',0.32); setTimeout(()=>tone(440,350,'sine',0.26),40); setTimeout(()=>tone(880,200,'sine',0.18),60); }
+/* ==== audio ==== */
+let audioCtx;function beep(){if(!audioCtx)audioCtx=new AudioContext();
+let o=audioCtx.createOscillator(),g=audioCtx.createGain();
+o.frequency.value=1000;o.connect(g);g.connect(audioCtx.destination);
+o.start();g.gain.setValueAtTime(.3,audioCtx.currentTime);
+g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.18);
+o.stop(audioCtx.currentTime+.2);}
+function bell(){beep();setTimeout(beep,200);}
 
-/* ===== Elements ===== */
-const titleEl=document.getElementById('title');
-const roundsEl=document.getElementById('rounds');
-const matchLenLbl=document.getElementById('matchLenLbl');
-const roundsLbl=document.getElementById('roundsLbl');
-const breakLbl=document.getElementById('breakLbl');
-const ringEl=document.getElementById('ring');
+/* ==== state ==== */
+let matchSec=300,breakSec=60,rounds=5,round=1;
+let pre=10,phase="ready",remain=matchSec,running=false,last=0,raf;
 
-const btnMinus=document.getElementById('minusMin');
-const btnPlus=document.getElementById('plusMin');
-const btnMinusR=document.getElementById('minusRnd');
-const btnPlusR=document.getElementById('plusRnd');
-const btnStart=document.getElementById('startPause');
-const btnReset=document.getElementById('reset');
-const btnFS=document.getElementById('fullscreen');
+/* ==== elements ==== */
+const titleEl=t=document.getElementById("title"),
+timeEl=document.getElementById("time"),ring=document.getElementById("ring"),
+ml=document.getElementById("matchLbl"),rl=document.getElementById("roundLbl"),bl=document.getElementById("breakLbl");
 
-/* Timer digits */
-const d1=document.getElementById('d1');
-const d2=document.getElementById('d2');
-const d3=document.getElementById('d3');
-const d4=document.getElementById('d4');
-
-/* ===== Config / State ===== */
-const BREAK_SEC=60, PRESTART_SEC=10;
-let matchSec=5*60, roundsTotal=5, roundNum=1;
-let phase='ready'; // 'ready'|'pre'|'run'|'break'|'done'
-let remaining=matchSec, running=false;
-let rafId=null, lastTs=null;
-
-/* ===== Colors (same scheme) ===== */
-const C = {
-  grey:getCSS('--grey','#9aa0a6'),
-  purple:getCSS('--purple','#9b5de5'),
-  green:getCSS('--green','#1db954'),
-  orange:getCSS('--orange','#ffae00'),
-  red:getCSS('--red','#ff3b30'),
-  blue:getCSS('--blue','#0091ff'),
-};
-function getCSS(v, fallback){const val=getComputedStyle(document.documentElement).getPropertyValue(v).trim(); return val||fallback;}
-
-/* ===== Helpers ===== */
-function fmt(sec){
-  sec=Math.max(0,Math.floor(sec));
-  const m=Math.floor(sec/60), s=sec%60;
-  return {m,s,txt:`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`};
-}
-function setTint(color){ document.documentElement.style.setProperty('--tint', color); }
-function remainingDeg(total){
-  const remFrac = Math.max(0, Math.min(1, remaining/total));
-  return Math.floor(360*remFrac);
-}
-function updateDigits(sec){
-  const t=fmt(sec), mm=String(t.m).padStart(2,'0'), ss=String(t.s).padStart(2,'0');
-  d1.textContent=mm[0]; d2.textContent=mm[1]; d3.textContent=ss[0]; d4.textContent=ss[1];
-}
-function currentTint(){
-  if(phase==='ready' || phase==='done') return C.grey;
-  if(phase==='pre') return C.purple;
-  if(phase==='run'){
-    if(remaining<=10) return C.red;
-    if(remaining<=30) return C.orange;
-    return C.green;
-  }
-  if(phase==='break'){
-    if(remaining<=10) return C.purple; // special rule
-    return C.blue;
-  }
-  return C.grey;
-}
-function setUrgencyClass(){
-  // Urgent only in last 10s of FIGHT or REST
-  const urgent = (phase==='run' || phase==='break') && remaining<=10;
-  document.body.classList.toggle('urgent', urgent);
+/* ==== ui ==== */
+function fmt(s){let m=Math.floor(s/60),ss=("0"+(s%60)).slice(-2);return `${("0"+m).slice(-2)}:${ss}`;}
+function tint(){if(phase==="ready"||phase==="done")return"#9aa0a6";
+if(phase==="pre")return"#9b5de5";
+if(phase==="run"){if(remain<=10)return"#ff3b30";if(remain<=30)return"#ffae00";return"#1db954";}
+if(phase==="break"){if(remain<=10)return"#9b5de5";return"#0091ff";}}
+function drawUI(){
+ timeEl.textContent=fmt(Math.floor(remain));
+ document.documentElement.style.setProperty("--tint",tint());
+ let total=phase==="run"?matchSec:phase==="break"?breakSec:phase==="pre"?pre:1;
+ document.documentElement.style.setProperty("--deg",Math.floor(360*(remain/total))+"deg");
+ t.textContent=phase==="pre"?"GET READY":phase==="run"?"FIGHT":phase==="break"?"REST":phase==="done"?"FINISHED":"READY";
+ ml.textContent=fmt(matchSec); rl.textContent=rounds; bl.textContent=fmt(breakSec);
+ document.body.classList.toggle("urgent",(phase==="run"||phase==="break")&&remain<=10);
 }
 
-/* ===== UI ===== */
-function updateRing(){
-  let total = (phase==='run')   ? matchSec
-            : (phase==='break') ? BREAK_SEC
-            : (phase==='pre')   ? PRESTART_SEC
-            : 1;
-  const deg = remainingDeg(total);
-  document.documentElement.style.setProperty('--deg', deg+'deg');
-  setTint(currentTint());
-}
-function updateUI(){
-  updateDigits(remaining);
-  updateRing();
-  setUrgencyClass();
-
-  // top title
-  titleEl.textContent =
-    phase==='pre'  ? 'GET READY' :
-    phase==='run'  ? 'FIGHT'     :
-    phase==='break'? 'REST'      :
-    phase==='done' ? 'FINISHED'  : 'READY';
-
-  // side labels
-  roundsEl.textContent=`Round ${Math.min(roundNum,roundsTotal)} / ${roundsTotal}`+(phase==='break'?'  (REST)':'');
-  matchLenLbl.textContent=fmt(matchSec).txt;
-  roundsLbl.textContent=String(roundsTotal);
-  breakLbl.textContent=fmt(BREAK_SEC).txt;
-
-  btnStart.textContent = running ? 'Pause' : (phase==='done' ? 'Restart' : 'Start');
-}
-
-/* ===== Flow ===== */
-function startPre(){ ensureAudio(); phase='pre'; remaining=PRESTART_SEC; running=true; lastTs=null; rafId=requestAnimationFrame(loop); updateUI(); }
-function startRun(){ phase='run'; remaining=matchSec; lastTs=null; updateUI(); }
-function nextOrFinish(){ if(roundNum>=roundsTotal){ phase='done'; running=false; } else { phase='break'; remaining=BREAK_SEC; lastTs=null; } updateUI(); }
+/* ==== loop ==== */
 function loop(ts){
-  if(!running) return;
-  if(lastTs==null) lastTs=ts||performance.now();
-  const now=ts||performance.now(), dt=(now-lastTs)/1000; lastTs=now;
+ if(!running)return;
+ if(!last)last=ts;
+ let dt=(ts-last)/1000;last=ts;
+ remain-=dt;if(remain<0)remain=0;
+ if(phase==="pre"&&remain<=0){bell();phase="run";remain=matchSec;}
+ else if(phase==="run"&&remain<=0){bell();round++;if(round>rounds){phase="done";running=false;}else{phase="break";remain=breakSec;}}
+ else if(phase==="break"&&remain<=0){bell();phase="run";remain=matchSec;}
+ drawUI();raf=requestAnimationFrame(loop);
+}
 
-  const prev=remaining; remaining=Math.max(0,remaining-dt);
+/* ==== controls ==== */
+function startPause(){if(running){running=false;}else{if(phase==="ready"||phase==="done"){phase="pre";remain=pre;round=1;}running=true;last=0;raf=requestAnimationFrame(loop);}drawUI();}
+function resetAll(){running=false;phase="ready";remain=matchSec;round=1;drawUI();}
+function plusMin(n){matchSec=Math.max(60,matchSec+n*60);if(phase==="ready")remain=matchSec;drawUI();}
+function plusRnd(n){rounds=Math.max(1,rounds+n);drawUI();}
+function fs(){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();}
 
-  if(phase==='pre'){
-    const p=Math.ceil(prev), n=Math.ceil(remaining);
-    if([3,2,1].includes
+document.getElementById("startPause").onclick=startPause;
+document.getElementById("reset").onclick=resetAll;
+document.getElementById("fullscreen").onclick=fs;
+document.getElementById("minusMin").onclick=()=>plusMin(-1);
+document.getElementById("plusMin").onclick=()=>plusMin(1);
+document.getElementById("minusRnd").onclick=()=>plusRnd(-1);
+document.getElementById("plusRnd").onclick=()=>plusRnd(1);
+document.addEventListener("keydown",e=>{
+ if(e.key==="Enter"||e.key===" ")startPause();
+ else if(e.key==="Escape"||e.key==="Backspace")resetAll();
+ else if(e.key==="0")fs();
+ else if(e.key==="ArrowUp")plusMin(1);
+ else if(e.key==="ArrowDown")plusMin(-1);
+ else if(e.key==="ArrowRight")plusRnd(1);
+ else if(e.key==="ArrowLeft")plusRnd(-1);
+});
+drawUI();
+</script>
+</body>
+</html>
