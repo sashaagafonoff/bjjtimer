@@ -6,33 +6,45 @@
 <title>BJJ Timer (TV)</title>
 <style>
   :root{
-    --bg:#000; --fg:#fff; --fight:#1db954; --rest:#ffae00; --end:#ff3b30; --muted:#9aa0a6;
+    --bg:#000; --fg:#fff;
+    --grey:#9aa0a6; --purple:#9b5de5; --green:#1db954; --orange:#ffae00; --red:#ff3b30; --blue:#0091ff;
     --track:#141414; --trail:#262626;
-    --inner:30%; /* inner hole radius -> 30% makes the band ~70% of the radius (thick) */
+    --inner:30%;        /* inner hole radius; 30% => ~70% thick band */
+    --tint:#9aa0a6;     /* current state color (updated by JS) */
+    --deg:360deg;       /* remaining sweep (updated by JS) */
   }
   html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);
     font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+
+  /* Top-center heading */
+  .topTitle{
+    position:fixed; top:1.5vh; left:50%; transform:translateX(-50%);
+    z-index:6; font-weight:900; letter-spacing:.03em; text-align:center;
+    font-size:clamp(4vh, 5vw, 7vh);
+    text-shadow:0 0 14px rgba(0,0,0,.6);
+  }
+
   .wrap{position:relative;display:flex;flex-direction:column;height:100%;
-    gap:1.5vh;padding:2vh 3vw;overflow:hidden;}
+    gap:1.5vh;padding:6vh 3vw 2vh; overflow:hidden;}
 
   /* ===== Stage (ring + logo centered) ===== */
   .stage{flex:1;display:flex;align-items:center;justify-content:center;z-index:1;}
   .ring{
     position:relative;width:min(70vh,80vw);height:min(70vh,80vw);border-radius:50%;overflow:hidden;
-    /* Base track + invisible center hole */
     background:
       radial-gradient(circle at 50% 50%, #000 0 var(--inner), transparent calc(var(--inner) + 0.1%)),
       conic-gradient(var(--trail) 0turn, var(--trail) 1turn);
     box-shadow:0 0 0 1.2vh #111 inset, 0 0 30px rgba(0,0,0,.6) inset;
+    transform-origin:center;
   }
-  /* Progress wedge (tinted by state classes) */
+  /* Remaining wedge (shrinks from 360deg → 0deg) */
   .ring::before{
     content:"";position:absolute;inset:0;
-    background:conic-gradient(var(--fight) var(--deg,0deg), var(--track) var(--deg,0deg));
+    background:conic-gradient(var(--tint) 0deg var(--deg), var(--track) var(--deg) 360deg);
     -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 var(--inner), #000 calc(var(--inner) + 0.1%));
             mask: radial-gradient(circle at 50% 50%, transparent 0 var(--inner), #000 calc(var(--inner) + 0.1%));
   }
-  /* Readability ticks (every ~10%) */
+  /* Readability ticks (~every 10%) */
   .ring::after{
     content:"";position:absolute;inset:0;
     background:conic-gradient(from 0deg, rgba(255,255,255,.08) 0deg 2deg, transparent 2deg 36deg);
@@ -44,17 +56,10 @@
 
   /* Perfect center logo */
   .logo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-    width:100%;height:auto;opacity:.3;pointer-events:none;}
+    width:40%;height:auto;opacity:.9;pointer-events:none;}
 
-  /* Big status text */
-  .badge{
-    position:absolute;left:50%;bottom:8%;transform:translateX(-50%);
-    text-align:center;font-weight:900;letter-spacing:.02em;
-    font-size:clamp(4vh,5vw,8vh);text-shadow:0 0 14px rgba(0,0,0,.65);
-  }
-
-  .subinfo{text-align:center;margin-top:.5vh;font-size:3.8vh;color:var(--muted);z-index:2;}
-  .foot{text-align:center;font-size:2.4vh;color:var(--muted);margin-top:auto;z-index:2;}
+  .subinfo{text-align:center;margin-top:.5vh;font-size:3.8vh;color:#cfd3d7;z-index:2;}
+  .foot{text-align:center;font-size:2.4vh;color:#9aa0a6;margin-top:auto;z-index:2;}
 
   /* ===== Floating HUDs ===== */
   .hud{position:fixed;z-index:5;display:flex;flex-direction:column;gap:1vh;}
@@ -85,23 +90,32 @@
     pointer-events:none;z-index:3;font-weight:900;line-height:1;letter-spacing:0;
     font-size:clamp(22vh,28vw,60vh);opacity:.6;
     text-shadow:0 0 25px rgba(0,0,0,.7),0 0 60px rgba(0,0,0,.35);
-    color:#fff; /* paused/inactive default */
+    color:var(--tint);  /* color follows --tint */
   }
   .timeGrid{display:flex;align-items:center;justify-content:center;gap:.08em;}
   .digit,.sep{display:flex;align-items:center;justify-content:center;height:1em;}
-  .digit{width:.58em;} .sep{width:.8em;opacity:.9;}
+  .digit{width:.78em;} .sep{width:.38em;opacity:.9;}
 
-  /* State colors for big digits + ring tint */
-  .fighting .timeOverlay{color:var(--fight);}
-  .resting  .timeOverlay{color:var(--rest);}
-  .ended    .timeOverlay{color:var(--end);}
-  .fighting .ring::before{background:conic-gradient(var(--fight) var(--deg,0deg),var(--track) var(--deg,0deg));}
-  .resting  .ring::before{background:conic-gradient(var(--rest)  var(--deg,0deg),var(--track) var(--deg,0deg));}
-  .ended    .ring::before{background:conic-gradient(var(--end)   var(--deg,0deg),var(--track) var(--deg,0deg));}
+  /* ===== Urgency animations (last 10s in fight/rest) ===== */
+  @keyframes pulseRing {
+    0%,100% { transform: scale(1); }
+    50%     { transform: scale(1.06); }
+  }
+  @keyframes flashTitle {
+    0%,100% { opacity: 1; }
+    50%     { opacity: .45; }
+  }
+  body.urgent .ring { animation: pulseRing 1s ease-in-out infinite; }
+  body.urgent .topTitle { animation: flashTitle 1s linear infinite; }
+  /* optional: blink the colon subtly */
+  body.urgent .sep { animation: flashTitle 1s steps(2,end) infinite; }
 </style>
 </head>
 <body>
-  <!-- RIGHT HUD: just the tips (no Breaks box) -->
+  <!-- Top-center heading -->
+  <div class="topTitle" id="title">READY</div>
+
+  <!-- RIGHT HUD: tips only -->
   <aside class="hud right">
     <div class="box tips">
       OK/Enter = Start/Pause<br/>
@@ -150,13 +164,12 @@
 
   <div class="wrap">
     <div class="stage">
-      <div class="ring" id="ring" style="--deg:0deg">
+      <div class="ring" id="ring" style="--deg:360deg">
         <img src="logo.png" class="logo" alt="Logo" onerror="this.style.display='none'"/>
-        <div class="badge" id="phaseBadge">READY</div>
       </div>
     </div>
     <div class="subinfo" id="rounds">Round 1 / 5</div>
-    <div class="foot">BJJ Timer • v0.9</div>
+    <div class="foot">BJJ Timer • v1.1</div>
   </div>
 
   <!-- Giant full-screen timer (fixed cells) -->
@@ -190,8 +203,8 @@ function beep(){ tone(1000,180,'sine',0.26); }
 function bell(){ tone(660,250,'triangle',0.32); setTimeout(()=>tone(440,350,'sine',0.26),40); setTimeout(()=>tone(880,200,'sine',0.18),60); }
 
 /* ===== Elements ===== */
+const titleEl=document.getElementById('title');
 const roundsEl=document.getElementById('rounds');
-const badgeEl=document.getElementById('phaseBadge');
 const matchLenLbl=document.getElementById('matchLenLbl');
 const roundsLbl=document.getElementById('roundsLbl');
 const breakLbl=document.getElementById('breakLbl');
@@ -218,66 +231,87 @@ let phase='ready'; // 'ready'|'pre'|'run'|'break'|'done'
 let remaining=matchSec, running=false;
 let rafId=null, lastTs=null;
 
+/* ===== Colors (same scheme) ===== */
+const C = {
+  grey:getCSS('--grey','#9aa0a6'),
+  purple:getCSS('--purple','#9b5de5'),
+  green:getCSS('--green','#1db954'),
+  orange:getCSS('--orange','#ffae00'),
+  red:getCSS('--red','#ff3b30'),
+  blue:getCSS('--blue','#0091ff'),
+};
+function getCSS(v, fallback){const val=getComputedStyle(document.documentElement).getPropertyValue(v).trim(); return val||fallback;}
+
 /* ===== Helpers ===== */
 function fmt(sec){
   sec=Math.max(0,Math.floor(sec));
   const m=Math.floor(sec/60), s=sec%60;
   return {m,s,txt:`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`};
 }
-function progressDeg(){
-  const total = phase==='run' ? matchSec : phase==='break' ? BREAK_SEC : phase==='pre' ? PRESTART_SEC : 1;
-  const done = total - remaining;
-  const pct = Math.max(0,Math.min(1, done/total));
-  return Math.floor(360*pct);
+function setTint(color){ document.documentElement.style.setProperty('--tint', color); }
+function remainingDeg(total){
+  const remFrac = Math.max(0, Math.min(1, remaining/total));
+  return Math.floor(360*remFrac);
 }
 function updateDigits(sec){
   const t=fmt(sec), mm=String(t.m).padStart(2,'0'), ss=String(t.s).padStart(2,'0');
   d1.textContent=mm[0]; d2.textContent=mm[1]; d3.textContent=ss[0]; d4.textContent=ss[1];
 }
+function currentTint(){
+  if(phase==='ready' || phase==='done') return C.grey;
+  if(phase==='pre') return C.purple;
+  if(phase==='run'){
+    if(remaining<=10) return C.red;
+    if(remaining<=30) return C.orange;
+    return C.green;
+  }
+  if(phase==='break'){
+    if(remaining<=10) return C.purple; // special rule
+    return C.blue;
+  }
+  return C.grey;
+}
+function setUrgencyClass(){
+  // Urgent only in last 10s of FIGHT or REST
+  const urgent = (phase==='run' || phase==='break') && remaining<=10;
+  document.body.classList.toggle('urgent', urgent);
+}
 
 /* ===== UI ===== */
-function updateRing(){ ringEl.style.setProperty('--deg', progressDeg()+'deg'); }
+function updateRing(){
+  let total = (phase==='run')   ? matchSec
+            : (phase==='break') ? BREAK_SEC
+            : (phase==='pre')   ? PRESTART_SEC
+            : 1;
+  const deg = remainingDeg(total);
+  document.documentElement.style.setProperty('--deg', deg+'deg');
+  setTint(currentTint());
+}
 function updateUI(){
-  // digits overlay
   updateDigits(remaining);
+  updateRing();
+  setUrgencyClass();
 
-  // labels
-  roundsEl.textContent=`Round ${Math.min(roundNum,roundsTotal)} / ${roundsTotal}`+(phase==='break'?'  (REST)':'');
-  matchLenLbl.textContent=fmt(matchSec).txt;
-  roundsLbl.textContent=String(roundsTotal);
-  breakLbl.textContent=fmt(BREAK_SEC).txt;
-
-  // status (big)
-  badgeEl.textContent=
+  // top title
+  titleEl.textContent =
     phase==='pre'  ? 'GET READY' :
     phase==='run'  ? 'FIGHT'     :
     phase==='break'? 'REST'      :
     phase==='done' ? 'FINISHED'  : 'READY';
 
-  // body class tints
-  document.body.classList.remove('fighting','resting','ended');
-  if(phase==='run') document.body.classList.add('fighting');
-  else if(phase==='break') document.body.classList.add('resting');
-  else if(phase==='done') document.body.classList.add('ended');
+  // side labels
+  roundsEl.textContent=`Round ${Math.min(roundNum,roundsTotal)} / ${roundsTotal}`+(phase==='break'?'  (REST)':'');
+  matchLenLbl.textContent=fmt(matchSec).txt;
+  roundsLbl.textContent=String(roundsTotal);
+  breakLbl.textContent=fmt(BREAK_SEC).txt;
 
-  // button label
   btnStart.textContent = running ? 'Pause' : (phase==='done' ? 'Restart' : 'Start');
-
-  updateRing();
 }
 
 /* ===== Flow ===== */
-function startPre(){ // no popup; big overlay shows the countdown
-  ensureAudio();
-  phase='pre'; remaining=PRESTART_SEC; running=true; lastTs=null;
-  rafId=requestAnimationFrame(loop); updateUI();
-}
+function startPre(){ ensureAudio(); phase='pre'; remaining=PRESTART_SEC; running=true; lastTs=null; rafId=requestAnimationFrame(loop); updateUI(); }
 function startRun(){ phase='run'; remaining=matchSec; lastTs=null; updateUI(); }
-function nextOrFinish(){
-  if(roundNum>=roundsTotal){ phase='done'; running=false; }
-  else { phase='break'; remaining=BREAK_SEC; lastTs=null; }
-  updateUI();
-}
+function nextOrFinish(){ if(roundNum>=roundsTotal){ phase='done'; running=false; } else { phase='break'; remaining=BREAK_SEC; lastTs=null; } updateUI(); }
 function loop(ts){
   if(!running) return;
   if(lastTs==null) lastTs=ts||performance.now();
@@ -286,73 +320,5 @@ function loop(ts){
   const prev=remaining; remaining=Math.max(0,remaining-dt);
 
   if(phase==='pre'){
-    const psec=Math.ceil(prev), nsec=Math.ceil(remaining);
-    if([3,2,1].includes(psec) && nsec<psec) beep();
-    if(remaining===0){ bell(); startRun(); }
-  }else if(phase==='run'){
-    if(prev>10 && remaining<=10) beep();
-    if(remaining===0){ bell(); roundNum++; nextOrFinish(); }
-  }else if(phase==='break'){
-    if(remaining===0){ bell(); phase='run'; remaining=matchSec; lastTs=now; }
-  }
-
-  updateUI();
-  rafId=requestAnimationFrame(loop);
-}
-
-/* ===== Controls ===== */
-function startPause(){
-  if(running){ running=false; cancelAnimationFrame(rafId); lastTs=null; }
-  else{
-    if(phase==='ready' || phase==='done'){ resetAll(); startPre(); }
-    else { running=true; lastTs=null; rafId=requestAnimationFrame(loop); }
-  }
-  updateUI();
-}
-function resetAll(){
-  running=false; cancelAnimationFrame(rafId); lastTs=null;
-  phase='ready'; roundNum=1; remaining=matchSec; updateUI();
-}
-function changeMinutes(d){
-  matchSec=Math.max(60,Math.min(20*60,matchSec+d*60));
-  if(phase==='ready'||phase==='done') remaining=matchSec;
-  updateUI();
-}
-function changeRounds(d){
-  roundsTotal=Math.max(1,Math.min(20,roundsTotal+d));
-  if(roundNum>roundsTotal) roundNum=roundsTotal;
-  updateUI();
-}
-function toggleFS(){
-  const el=document.documentElement;
-  if(!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen();
-  else if(document.exitFullscreen) document.exitFullscreen();
-}
-
-/* Wire up */
-btnMinus.onclick=()=>changeMinutes(-1);
-btnPlus.onclick =()=>changeMinutes(1);
-btnMinusR.onclick=()=>changeRounds(-1);
-btnPlusR.onclick =()=>changeRounds(1);
-btnStart.onclick =startPause;
-btnReset.onclick =resetAll;
-btnFS.onclick    =toggleFS;
-
-/* Remote / Keyboard */
-addEventListener('keydown',(e)=>{
-  switch(e.key){
-    case 'Enter': case ' ': startPause(); break;
-    case 'Backspace': case 'Escape': resetAll(); break;
-    case '0': toggleFS(); break;
-    case 'ArrowUp': changeMinutes(1); break;
-    case 'ArrowDown': changeMinutes(-1); break;
-    case 'ArrowRight': changeRounds(1); break;
-    case 'ArrowLeft': changeRounds(-1); break;
-  }
-});
-
-/* Init */
-updateUI();
-</script>
-</body>
-</html>
+    const p=Math.ceil(prev), n=Math.ceil(remaining);
+    if([3,2,1].includes
