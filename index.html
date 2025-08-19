@@ -5,126 +5,104 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>BJJ Timer (TV)</title>
 <style>
-  :root {
+  :root{
     --bg:#000; --fg:#fff; --fight:#1db954; --rest:#ffae00; --end:#ff3b30; --muted:#9aa0a6;
     --track:#141414; --trail:#262626;
+    --inner:30%; /* inner hole radius -> 30% makes the band ~70% of the radius (thick) */
   }
-  html,body { height:100%; margin:0; background:var(--bg); color:var(--fg);
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
-  .wrap { position:relative; display:flex; flex-direction:column; height:100%;
-    gap:1.5vh; padding:2vh 3vw; overflow:hidden; }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+  .wrap{position:relative;display:flex;flex-direction:column;height:100%;
+    gap:1.5vh;padding:2vh 3vw;overflow:hidden;}
 
   /* ===== Stage (ring + logo centered) ===== */
-  .stage { flex:1; display:flex; align-items:center; justify-content:center; z-index:1; }
-  .ring {
-    position: relative;
-    width:min(70vh,80vw); height:min(70vh,80vw);
-    border-radius:50%;
-    overflow:hidden;
-    background: radial-gradient(circle at 50% 50%, #000 0 62%, transparent 62.1%),
-                conic-gradient(var(--trail) 0turn, var(--trail) 1turn);
-    box-shadow: 0 0 0 1.2vh #111 inset, 0 0 30px rgba(0,0,0,.6) inset;
-  }
-  .ring::before{
-    content:"";
-    position:absolute; inset:0;
-    background: conic-gradient(var(--fight) var(--deg,0deg), var(--track) var(--deg,0deg));
-    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
-            mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
-  }
-  .ring::after{
-    content:"";
-    position:absolute; inset:0;
+  .stage{flex:1;display:flex;align-items:center;justify-content:center;z-index:1;}
+  .ring{
+    position:relative;width:min(70vh,80vw);height:min(70vh,80vw);border-radius:50%;overflow:hidden;
+    /* Base track + invisible center hole */
     background:
-      conic-gradient(from 0deg, rgba(255,255,255,.08) 0deg 2deg, transparent 2deg 36deg);
-    background-size: 36deg 36deg;
-    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
-            mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
+      radial-gradient(circle at 50% 50%, #000 0 var(--inner), transparent calc(var(--inner) + 0.1%)),
+      conic-gradient(var(--trail) 0turn, var(--trail) 1turn);
+    box-shadow:0 0 0 1.2vh #111 inset, 0 0 30px rgba(0,0,0,.6) inset;
+  }
+  /* Progress wedge (tinted by state classes) */
+  .ring::before{
+    content:"";position:absolute;inset:0;
+    background:conic-gradient(var(--fight) var(--deg,0deg), var(--track) var(--deg,0deg));
+    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 var(--inner), #000 calc(var(--inner) + 0.1%));
+            mask: radial-gradient(circle at 50% 50%, transparent 0 var(--inner), #000 calc(var(--inner) + 0.1%));
+  }
+  /* Readability ticks (every ~10%) */
+  .ring::after{
+    content:"";position:absolute;inset:0;
+    background:conic-gradient(from 0deg, rgba(255,255,255,.08) 0deg 2deg, transparent 2deg 36deg);
+    background-size:36deg 36deg;
+    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 var(--inner), #000 calc(var(--inner) + 0.1%));
+            mask: radial-gradient(circle at 50% 50%, transparent 0 var(--inner), #000 calc(var(--inner) + 0.1%));
     pointer-events:none;
   }
 
   /* Perfect center logo */
-  .logo {
-    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-    width:40%; height:auto; opacity:.9; pointer-events:none;
-  }
+  .logo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:40%;height:auto;opacity:.9;pointer-events:none;}
 
   /* Big status text */
-  .badge {
-    position:absolute; left:50%; bottom:8%; transform:translateX(-50%);
-    text-align:center; font-weight:900; letter-spacing:.02em;
-    font-size: clamp(4vh, 5vw, 8vh);
-    text-shadow: 0 0 14px rgba(0,0,0,.65);
+  .badge{
+    position:absolute;left:50%;bottom:8%;transform:translateX(-50%);
+    text-align:center;font-weight:900;letter-spacing:.02em;
+    font-size:clamp(4vh,5vw,8vh);text-shadow:0 0 14px rgba(0,0,0,.65);
   }
 
-  .subinfo { text-align:center; margin-top:.5vh; font-size:3.8vh; color:var(--muted); z-index:2; }
+  .subinfo{text-align:center;margin-top:.5vh;font-size:3.8vh;color:var(--muted);z-index:2;}
+  .foot{text-align:center;font-size:2.4vh;color:var(--muted);margin-top:auto;z-index:2;}
 
   /* ===== Floating HUDs ===== */
-  .hud { position: fixed; top: 2vh; z-index: 5; display:flex; flex-direction:column; gap:1vh; }
-  .hud .box {
-    background: rgba(0,0,0,.55); border: 1px solid #333; border-radius: .8vh;
-    padding: 1.2vh 1.4vw; color:#ddd; backdrop-filter: blur(4px);
-  }
-  .hud.right { right: 2vw; align-items:flex-end; }
-  .hud.right .box { max-width: 30vw; font-size: 2.4vh; }
-  .hud.right .breaks { font-weight:700; color:#fff; font-size:2.6vh; }
+  .hud{position:fixed;z-index:5;display:flex;flex-direction:column;gap:1vh;}
+  .hud .box{background:rgba(0,0,0,.55);border:1px solid #333;border-radius:.8vh;
+    padding:1.2vh 1.4vw;color:#ddd;backdrop-filter:blur(4px);}
+  .hud.right{right:2vw;top:2vh;align-items:flex-end;}
+  .hud.right .box{max-width:30vw;font-size:2.4vh;}
 
-  .hud.left { left: 2vw; align-items:flex-start; }
-  .hud.left .box { font-size: 2.6vh; }
-  .hud.left .btns { display:flex; flex-direction:column; gap:.8vh; }
-  .hud.left button {
-    font-size:3vh; padding:1vh 2vw; background:#111; color:#fff;
-    border:1px solid #333; border-radius:.8vh; width: 18vw; max-width: 320px;
-    text-align:center;
+  /* LEFT: top container = buttons; bottom container = settings */
+  .hud.leftTop{left:2vw;top:2vh;align-items:flex-start;}
+  .hud.leftBottom{left:2vw;bottom:2vh;align-items:flex-start;}
+
+  .hud.leftTop .btns{display:flex;flex-direction:column;gap:.8vh;}
+  .hud.leftTop button{
+    font-size:3vh;padding:1vh 2vw;background:#111;color:#fff;border:1px solid #333;border-radius:.8vh;
+    width:18vw;max-width:320px;text-align:center;
   }
-  .hud.left button:active { transform: scale(.98); }
-  .hud.left .row { display:flex; gap:.6vw; align-items:center; margin-top:.6vh; }
-  .hud.left .label { color:#cfd3d7; min-width: 8.5vw; }
-  .hud.left .value { font-weight:700; color:#fff; min-width: 6vw; text-align:center; }
-  .hud.left .mini button { font-size:2.6vh; padding:.6vh 1vw; width:auto; }
+  .hud.leftTop button:active{transform:scale(.98);}
+
+  .hud.leftBottom .row{display:flex;gap:.6vw;align-items:center;margin-top:.6vh;}
+  .hud.leftBottom .label{color:#cfd3d7;min-width:8.5vw;}
+  .hud.leftBottom .value{font-weight:700;color:#fff;min-width:6vw;text-align:center;}
+  .hud.leftBottom .mini button{font-size:2.6vh;padding:.6vh 1vw;width:auto;background:#111;color:#fff;border:1px solid #333;border-radius:.6vh;}
 
   /* ===== Full-screen timer overlay with fixed cells (no jitter) ===== */
-  .timeOverlay {
-    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
-    pointer-events:none; z-index:3;
-    font-weight:900; line-height:1; letter-spacing:0; font-variant-numeric: tabular-nums;
-    font-size: clamp(22vh, 28vw, 60vh);
-    opacity:.6;
-    text-shadow: 0 0 25px rgba(0,0,0,.7), 0 0 60px rgba(0,0,0,.35);
+  .timeOverlay{
+    position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    pointer-events:none;z-index:3;font-weight:900;line-height:1;letter-spacing:0;
+    font-size:clamp(22vh,28vw,60vh);opacity:.6;
+    text-shadow:0 0 25px rgba(0,0,0,.7),0 0 60px rgba(0,0,0,.35);
     color:#fff; /* paused/inactive default */
   }
-  .timeGrid { display:flex; align-items:center; justify-content:center; gap:.08em; }
-  .digit, .sep {
-    display:flex; align-items:center; justify-content:center;
-    height:1em;
-  }
-  /* Equal space for each NUMBER (4 digits). Colon is its own narrow cell. */
-  .digit { width: .78em; }
-  .sep   { width: .38em; opacity:.9; }
+  .timeGrid{display:flex;align-items:center;justify-content:center;gap:.08em;}
+  .digit,.sep{display:flex;align-items:center;justify-content:center;height:1em;}
+  .digit{width:.78em;} .sep{width:.38em;opacity:.9;}
 
-  /* State colors */
-  .fighting .timeOverlay { color: var(--fight); }
-  .resting  .timeOverlay { color: var(--rest); }
-  .ended    .timeOverlay { color: var(--end); }
-
-  /* Dynamic ring tint */
-  .fighting .ring::before { background: conic-gradient(var(--fight) var(--deg,0deg), var(--track) var(--deg,0deg)); }
-  .resting  .ring::before { background: conic-gradient(var(--rest)  var(--deg,0deg), var(--track) var(--deg,0deg)); }
-  .ended    .ring::before { background: conic-gradient(var(--end)   var(--deg,0deg), var(--track) var(--deg,0deg)); }
-
-  /* Pre-start overlay */
-  .prestart { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.55); z-index:4; }
-  .prebox { padding:3vh 5vw; border:2px solid #444; border-radius:1vh; background:#111; text-align:center; }
-  .pretitle { font-size:4vh; color:#cde; margin-bottom:1vh; }
-  .pretime { font-size:14vh; font-weight:800; }
-
-  .foot { text-align:center; font-size:2.4vh; color:var(--muted); margin-top:auto; z-index:2; }
+  /* State colors for big digits + ring tint */
+  .fighting .timeOverlay{color:var(--fight);}
+  .resting  .timeOverlay{color:var(--rest);}
+  .ended    .timeOverlay{color:var(--end);}
+  .fighting .ring::before{background:conic-gradient(var(--fight) var(--deg,0deg),var(--track) var(--deg,0deg));}
+  .resting  .ring::before{background:conic-gradient(var(--rest)  var(--deg,0deg),var(--track) var(--deg,0deg));}
+  .ended    .ring::before{background:conic-gradient(var(--end)   var(--deg,0deg),var(--track) var(--deg,0deg));}
 </style>
 </head>
 <body>
-  <!-- RIGHT HUD: Breaks + Tips -->
+  <!-- RIGHT HUD: just the tips (no Breaks box) -->
   <aside class="hud right">
-    <div class="box breaks" id="breaksBox">Breaks: 1:00</div>
     <div class="box tips">
       OK/Enter = Start/Pause<br/>
       Back/Esc = Reset<br/>
@@ -133,29 +111,36 @@
     </div>
   </aside>
 
-  <!-- LEFT HUD: Vertical controls + settings -->
-  <aside class="hud left">
+  <!-- LEFT TOP HUD: main buttons -->
+  <aside class="hud leftTop">
     <div class="box">
       <div class="btns">
         <button id="startPause">Start</button>
         <button id="reset">Reset</button>
         <button id="fullscreen">Fullscreen</button>
       </div>
+    </div>
+  </aside>
 
-      <div class="row mini" style="margin-top:1.2vh;">
+  <!-- LEFT BOTTOM HUD: settings -->
+  <aside class="hud leftBottom">
+    <div class="box">
+      <div class="row mini" style="margin-top:.2vh;">
         <div class="label">Match</div>
         <div class="value" id="matchLenLbl">05:00</div>
-        <button id="minusMin">−1m</button>
-        <button id="plusMin">+1m</button>
+        <div class="mini">
+          <button id="minusMin">−1m</button>
+          <button id="plusMin">+1m</button>
+        </div>
       </div>
-
       <div class="row mini">
         <div class="label">Rounds</div>
         <div class="value" id="roundsLbl">5</div>
-        <button id="minusRnd">−1</button>
-        <button id="plusRnd">+1</button>
+        <div class="mini">
+          <button id="minusRnd">−1</button>
+          <button id="plusRnd">+1</button>
+        </div>
       </div>
-
       <div class="row" style="margin-top:.8vh;">
         <div class="label">Break</div>
         <div class="value" id="breakLbl">01:00</div>
@@ -170,9 +155,8 @@
         <div class="badge" id="phaseBadge">READY</div>
       </div>
     </div>
-
     <div class="subinfo" id="rounds">Round 1 / 5</div>
-    <div class="foot">BJJ Timer • v0.8</div>
+    <div class="foot">BJJ Timer • v0.9</div>
   </div>
 
   <!-- Giant full-screen timer (fixed cells) -->
@@ -186,19 +170,11 @@
     </div>
   </div>
 
-  <!-- Pre-start overlay -->
-  <div class="prestart" id="preOverlay" aria-hidden="true">
-    <div class="prebox">
-      <div class="pretitle">Get Ready</div>
-      <div class="pretime" id="preClock">00:10</div>
-    </div>
-  </div>
-
 <script>
 /* ===== Audio (WebAudio): 3-2-1 beeps + bell ===== */
-let audioCtx = null;
+let audioCtx=null;
 function ensureAudio(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }
-function tone(freq=880, ms=200, type='sine', gain=0.22){
+function tone(freq=880,ms=200,type='sine',gain=0.22){
   try{
     ensureAudio();
     const o=audioCtx.createOscillator(), g=audioCtx.createGain();
@@ -220,9 +196,6 @@ const matchLenLbl=document.getElementById('matchLenLbl');
 const roundsLbl=document.getElementById('roundsLbl');
 const breakLbl=document.getElementById('breakLbl');
 const ringEl=document.getElementById('ring');
-const preOverlay=document.getElementById('preOverlay');
-const preClock=document.getElementById('preClock');
-const breaksBox=document.getElementById('breaksBox');
 
 const btnMinus=document.getElementById('minusMin');
 const btnPlus=document.getElementById('plusMin');
@@ -246,7 +219,11 @@ let remaining=matchSec, running=false;
 let rafId=null, lastTs=null;
 
 /* ===== Helpers ===== */
-function fmt(sec){ sec=Math.max(0,Math.floor(sec)); const m=Math.floor(sec/60), s=sec%60; return {m,s,txt:`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`}; }
+function fmt(sec){
+  sec=Math.max(0,Math.floor(sec));
+  const m=Math.floor(sec/60), s=sec%60;
+  return {m,s,txt:`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`};
+}
 function progressDeg(){
   const total = phase==='run' ? matchSec : phase==='break' ? BREAK_SEC : phase==='pre' ? PRESTART_SEC : 1;
   const done = total - remaining;
@@ -254,47 +231,34 @@ function progressDeg(){
   return Math.floor(360*pct);
 }
 function updateDigits(sec){
-  const t = fmt(sec);
-  const mm = String(t.m).padStart(2,'0');
-  const ss = String(t.s).padStart(2,'0');
-  d1.textContent = mm[0];
-  d2.textContent = mm[1];
-  d3.textContent = ss[0];
-  d4.textContent = ss[1];
+  const t=fmt(sec), mm=String(t.m).padStart(2,'0'), ss=String(t.s).padStart(2,'0');
+  d1.textContent=mm[0]; d2.textContent=mm[1]; d3.textContent=ss[0]; d4.textContent=ss[1];
 }
 
 /* ===== UI ===== */
-function updateRing(){
-  ringEl.style.setProperty('--deg', progressDeg()+'deg');
-}
+function updateRing(){ ringEl.style.setProperty('--deg', progressDeg()+'deg'); }
 function updateUI(){
   // digits overlay
   updateDigits(remaining);
 
-  // side labels
-  const t = fmt(remaining);
-  roundsEl.textContent = `Round ${Math.min(roundNum,roundsTotal)} / ${roundsTotal}` + (phase==='break'?'  (REST)':'');
-  matchLenLbl.textContent = fmt(matchSec).txt;
-  roundsLbl.textContent = String(roundsTotal);
-  breakLbl.textContent = fmt(BREAK_SEC).txt;
-  breaksBox.textContent = `Breaks: ${fmt(BREAK_SEC).txt}`;
+  // labels
+  roundsEl.textContent=`Round ${Math.min(roundNum,roundsTotal)} / ${roundsTotal}`+(phase==='break'?'  (REST)':'');
+  matchLenLbl.textContent=fmt(matchSec).txt;
+  roundsLbl.textContent=String(roundsTotal);
+  breakLbl.textContent=fmt(BREAK_SEC).txt;
 
-  // status text
-  badgeEl.textContent =
+  // status (big)
+  badgeEl.textContent=
     phase==='pre'  ? 'GET READY' :
     phase==='run'  ? 'FIGHT'     :
     phase==='break'? 'REST'      :
     phase==='done' ? 'FINISHED'  : 'READY';
 
-  // body classes for color tint
+  // body class tints
   document.body.classList.remove('fighting','resting','ended');
   if(phase==='run') document.body.classList.add('fighting');
   else if(phase==='break') document.body.classList.add('resting');
   else if(phase==='done') document.body.classList.add('ended');
-
-  // pre-start overlay
-  preOverlay.style.display = (phase==='pre') ? 'flex' : 'none';
-  preClock.textContent = fmt(remaining).txt;
 
   // button label
   btnStart.textContent = running ? 'Pause' : (phase==='done' ? 'Restart' : 'Start');
@@ -302,12 +266,11 @@ function updateUI(){
   updateRing();
 }
 
-/* ===== Flow control ===== */
-function startPre(){
+/* ===== Flow ===== */
+function startPre(){ // no popup; big overlay shows the countdown
   ensureAudio();
   phase='pre'; remaining=PRESTART_SEC; running=true; lastTs=null;
-  rafId=requestAnimationFrame(loop);
-  updateUI();
+  rafId=requestAnimationFrame(loop); updateUI();
 }
 function startRun(){ phase='run'; remaining=matchSec; lastTs=null; updateUI(); }
 function nextOrFinish(){
@@ -320,17 +283,16 @@ function loop(ts){
   if(lastTs==null) lastTs=ts||performance.now();
   const now=ts||performance.now(), dt=(now-lastTs)/1000; lastTs=now;
 
-  const prev=remaining;
-  remaining=Math.max(0,remaining-dt);
+  const prev=remaining; remaining=Math.max(0,remaining-dt);
 
   if(phase==='pre'){
     const psec=Math.ceil(prev), nsec=Math.ceil(remaining);
     if([3,2,1].includes(psec) && nsec<psec) beep();
     if(remaining===0){ bell(); startRun(); }
-  } else if(phase==='run'){
+  }else if(phase==='run'){
     if(prev>10 && remaining<=10) beep();
     if(remaining===0){ bell(); roundNum++; nextOrFinish(); }
-  } else if(phase==='break'){
+  }else if(phase==='break'){
     if(remaining===0){ bell(); phase='run'; remaining=matchSec; lastTs=now; }
   }
 
@@ -352,7 +314,7 @@ function resetAll(){
   phase='ready'; roundNum=1; remaining=matchSec; updateUI();
 }
 function changeMinutes(d){
-  matchSec=Math.max(60,Math.min(20*60,matchSec+d*60)); // 1–20 min
+  matchSec=Math.max(60,Math.min(20*60,matchSec+d*60));
   if(phase==='ready'||phase==='done') remaining=matchSec;
   updateUI();
 }
