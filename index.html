@@ -29,7 +29,7 @@
   /* Perfectly centered logo */
   .logo {
     position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-    width:100%; height:auto; opacity:.9; pointer-events:none;
+    width:80%; height:auto; opacity:.9; pointer-events:none;
   }
   .ring {
     position: relative;
@@ -80,11 +80,11 @@
     position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
     pointer-events:none; z-index:3;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Roboto Mono", "DM Mono", monospace;
-    font-weight:900; line-height:1; letter-spacing:0; font-variant-numeric: tabular-nums;
+    font-weight:1200; line-height:1; letter-spacing:0; font-variant-numeric: tabular-nums;
     font-size: clamp(22vh, 28vw, 60vh);
     opacity:.6;
     text-shadow: 0 0 25px rgba(0,0,0,.7), 0 0 60px rgba(0,0,0,.35);
-    color:#fff; /* paused/inactive default */
+    color:#ccc; /* paused/inactive default */
   }
   /* Fix total width so digits never shift horizontally (we use MM:SS max) */
   .timeOverlay .fixed {
