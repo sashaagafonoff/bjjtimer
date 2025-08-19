@@ -1,141 +1,310 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>BJJ Timer</title>
-<style>
-:root{
-  --inner:30%;
-  --deg:360deg;
-  --tint:#9aa0a6;
-  --track:#141414;
-  --trail:#262626;
-}
-body{margin:0;height:100%;background:#000;color:#fff;font-family:sans-serif;overflow:hidden;}
-.topTitle{position:fixed;top:1.5vh;left:50%;transform:translateX(-50%);
-  font-size:6vh;font-weight:900;text-shadow:0 0 14px #000;z-index:6;}
-.stage{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);}
-.ring{width:min(70vh,80vw);height:min(70vh,80vw);border-radius:50%;
-  position:relative;
-  background:radial-gradient(circle,#000 0 var(--inner),transparent calc(var(--inner)+.1%)),
-             conic-gradient(var(--trail) 0turn,var(--trail) 1turn);}
-.ring::before{content:"";position:absolute;inset:0;
-  background:conic-gradient(var(--tint) 0deg var(--deg),var(--track) var(--deg) 360deg);
-  -webkit-mask:radial-gradient(circle,transparent 0 var(--inner),#000 calc(var(--inner)+.1%));
-          mask:radial-gradient(circle,transparent 0 var(--inner),#000 calc(var(--inner)+.1%));}
-.logo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:40%;opacity:.9;}
-.timeOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-  font-size:28vw;font-weight:900;color:var(--tint);opacity:.65;
-  text-shadow:0 0 25px #000,0 0 60px #000;}
-/* Animations for urgency */
-@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
-@keyframes flash{0%,100%{opacity:1;}50%{opacity:.4;}}
-body.urgent .ring{animation:pulse 1s infinite;}
-body.urgent .topTitle{animation:flash 1s infinite;}
-/* simple HUDs */
-.hud{position:fixed;z-index:10;font-size:2vh;}
-.leftTop{top:2vh;left:2vw;}
-.leftBottom{bottom:2vh;left:2vw;}
-.right{top:2vh;right:2vw;max-width:30vw;}
-button{font-size:2.5vh;margin:.4vh; background:#111;color:#fff;border:1px solid #333;border-radius:.6vh;padding:.6vh 1vw;}
-.value{font-weight:700;}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BJJ Timer</title>
+  <style>
+    :root {
+      --inner: 30%;
+      --deg: 360deg;
+      /* remaining sweep (updated by JS) */
+      --tint: #9aa0a6;
+      /* current state color (updated by JS) */
+      --track: #141414;
+      --trail: #262626;
+    }
+
+    body {
+      margin: 0;
+      height: 100%;
+      background: #000;
+      color: #fff;
+      font-family: sans-serif;
+      overflow: hidden;
+    }
+
+    .topTitle {
+      position: fixed;
+      top: 1.5vh;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 8vh;
+      font-weight: 900;
+      text-shadow: 0 0 14px #000;
+      z-index: 6;
+    }
+
+    .stage {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* SQUARE ring container (no border-radius) */
+    .ring {
+      width: min(70vh, 80vw);
+      height: min(70vh, 80vw);
+      position: relative;
+      background:
+        radial-gradient(circle, #000 0 var(--inner), transparent calc(var(--inner)+.1%)),
+        conic-gradient(var(--trail) 0turn, var(--trail) 1turn);
+      box-shadow: 0 0 0 1.2vh #111 inset, 0 0 30px rgba(0, 0, 0, .6) inset;
+    }
+
+    /* Remaining wedge (shrinks from 360deg → 0deg) */
+    .ring::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: 0.6;
+      background: conic-gradient(var(--tint) 0deg var(--deg), var(--track) var(--deg) 360deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 var(--inner), #000 calc(var(--inner)+.1%));
+      mask: radial-gradient(circle, transparent 0 var(--inner), #000 calc(var(--inner)+.1%));
+    }
+
+    .logo {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      opacity: 1.0;
+    }
+
+    .timeOverlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28vw;
+      font-weight: 900;
+      color: var(--tint);
+      opacity: .65;
+      text-shadow: 0 0 25px #000, 0 0 60px #000;
+    }
+
+    /* Urgency animations (last 10s) */
+    @keyframes pulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.06);
+      }
+    }
+
+    @keyframes flash {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: .4;
+      }
+    }
+
+    body.urgent .ring {
+      animation: pulse 1s infinite;
+    }
+
+    body.urgent .topTitle {
+      animation: flash 1s infinite;
+    }
+
+    .hud {
+      position: fixed;
+      z-index: 10;
+      font-size: 2vh;
+    }
+
+    .leftTop {
+      top: 2vh;
+      left: 2vw;
+    }
+
+    .leftBottom {
+      bottom: 2vh;
+      left: 2vw;
+    }
+
+    .right {
+      top: 2vh;
+      right: 2vw;
+      max-width: 30vw;
+    }
+
+    button {
+      font-size: 2.5vh;
+      margin: .4vh;
+      background: #111;
+      color: #fff;
+      border: 1px solid #333;
+      border-radius: .6vh;
+      padding: .6vh 1vw;
+    }
+
+    .value {
+      font-weight: 700;
+    }
+  </style>
 </head>
+
 <body>
-<div class="topTitle" id="title">READY</div>
-<div class="stage">
-  <div class="ring" id="ring"><img src="logo.png" class="logo" onerror="this.remove()"/></div>
-</div>
-<div class="timeOverlay" id="time">05:00</div>
-<!-- HUDs -->
-<div class="hud leftTop">
-  <button id="startPause">Start</button>
-  <button id="reset">Reset</button>
-  <button id="fullscreen">Fullscreen</button>
-</div>
-<div class="hud leftBottom">
-  <div>Match <span class="value" id="matchLbl">05:00</span>
-    <button id="minusMin">-1m</button><button id="plusMin">+1m</button></div>
-  <div>Rounds <span class="value" id="roundLbl">5</span>
-    <button id="minusRnd">-1</button><button id="plusRnd">+1</button></div>
-  <div>Break <span class="value" id="breakLbl">01:00</span></div>
-</div>
-<div class="hud right">
-  OK/Enter=Start/Pause<br/>Back/Esc=Reset<br/>0=Fullscreen
-</div>
+  <div class="topTitle" id="title">READY</div>
 
-<script>
-/* ==== audio ==== */
-let audioCtx;function beep(){if(!audioCtx)audioCtx=new AudioContext();
-let o=audioCtx.createOscillator(),g=audioCtx.createGain();
-o.frequency.value=1000;o.connect(g);g.connect(audioCtx.destination);
-o.start();g.gain.setValueAtTime(.3,audioCtx.currentTime);
-g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.18);
-o.stop(audioCtx.currentTime+.2);}
-function bell(){beep();setTimeout(beep,200);}
+  <div class="stage">
+    <div class="ring" id="ring"><img src="logo.png" class="logo" onerror="this.remove()" /></div>
+  </div>
 
-/* ==== state ==== */
-let matchSec=300,breakSec=60,rounds=5,round=1;
-let pre=10,phase="ready",remain=matchSec,running=false,last=0,raf;
+  <div class="timeOverlay" id="time">05:00</div>
 
-/* ==== elements ==== */
-const titleEl=t=document.getElementById("title"),
-timeEl=document.getElementById("time"),ring=document.getElementById("ring"),
-ml=document.getElementById("matchLbl"),rl=document.getElementById("roundLbl"),bl=document.getElementById("breakLbl");
+  <!-- HUDs -->
+  <div class="hud leftTop">
+    <button id="startPause">Start</button>
+    <button id="reset">Reset</button>
+    <button id="fullscreen">Fullscreen</button>
+  </div>
+  <div class="hud leftBottom">
+    <div>Match <span class="value" id="matchLbl">05:00</span>
+      <button id="minusMin">-1m</button><button id="plusMin">+1m</button>
+    </div>
+    <div>Rounds <span class="value" id="roundLbl">5</span>
+      <button id="minusRnd">-1</button><button id="plusRnd">+1</button>
+    </div>
+    <div>Break <span class="value" id="breakLbl">01:00</span></div>
+  </div>
+  <div class="hud right">
+    OK/Enter=Start/Pause<br />Back/Esc=Reset<br />0=Fullscreen
+  </div>
 
-/* ==== ui ==== */
-function fmt(s){let m=Math.floor(s/60),ss=("0"+(s%60)).slice(-2);return `${("0"+m).slice(-2)}:${ss}`;}
-function tint(){if(phase==="ready"||phase==="done")return"#9aa0a6";
-if(phase==="pre")return"#9b5de5";
-if(phase==="run"){if(remain<=10)return"#ff3b30";if(remain<=30)return"#ffae00";return"#1db954";}
-if(phase==="break"){if(remain<=10)return"#9b5de5";return"#0091ff";}}
-function drawUI(){
- timeEl.textContent=fmt(Math.floor(remain));
- document.documentElement.style.setProperty("--tint",tint());
- let total=phase==="run"?matchSec:phase==="break"?breakSec:phase==="pre"?pre:1;
- document.documentElement.style.setProperty("--deg",Math.floor(360*(remain/total))+"deg");
- t.textContent=phase==="pre"?"GET READY":phase==="run"?"FIGHT":phase==="break"?"REST":phase==="done"?"FINISHED":"READY";
- ml.textContent=fmt(matchSec); rl.textContent=rounds; bl.textContent=fmt(breakSec);
- document.body.classList.toggle("urgent",(phase==="run"||phase==="break")&&remain<=10);
-}
+  <script>
+    /* ==== audio ==== */
+    let audioCtx;
+    function beep() {
+      if (!audioCtx) audioCtx = new AudioContext();
+      let o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.frequency.value = 1000; o.connect(g); g.connect(audioCtx.destination);
+      o.start(); g.gain.setValueAtTime(.3, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + .18);
+      o.stop(audioCtx.currentTime + .2);
+    }
+    function bell() { beep(); setTimeout(beep, 200); }
 
-/* ==== loop ==== */
-function loop(ts){
- if(!running)return;
- if(!last)last=ts;
- let dt=(ts-last)/1000;last=ts;
- remain-=dt;if(remain<0)remain=0;
- if(phase==="pre"&&remain<=0){bell();phase="run";remain=matchSec;}
- else if(phase==="run"&&remain<=0){bell();round++;if(round>rounds){phase="done";running=false;}else{phase="break";remain=breakSec;}}
- else if(phase==="break"&&remain<=0){bell();phase="run";remain=matchSec;}
- drawUI();raf=requestAnimationFrame(loop);
-}
+    /* ==== state ==== */
+    let matchSec = 300, breakSec = 60, rounds = 5, round = 1;
+    const pre = 10;
+    let phase = "ready", remain = matchSec, running = false, last = 0, raf;
 
-/* ==== controls ==== */
-function startPause(){if(running){running=false;}else{if(phase==="ready"||phase==="done"){phase="pre";remain=pre;round=1;}running=true;last=0;raf=requestAnimationFrame(loop);}drawUI();}
-function resetAll(){running=false;phase="ready";remain=matchSec;round=1;drawUI();}
-function plusMin(n){matchSec=Math.max(60,matchSec+n*60);if(phase==="ready")remain=matchSec;drawUI();}
-function plusRnd(n){rounds=Math.max(1,rounds+n);drawUI();}
-function fs(){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();}
+    /* ==== elements ==== */
+    const titleEl = document.getElementById("title"),
+      timeEl = document.getElementById("time"),
+      ml = document.getElementById("matchLbl"),
+      rl = document.getElementById("roundLbl"),
+      bl = document.getElementById("breakLbl"),
+      startBtn = document.getElementById("startPause");
 
-document.getElementById("startPause").onclick=startPause;
-document.getElementById("reset").onclick=resetAll;
-document.getElementById("fullscreen").onclick=fs;
-document.getElementById("minusMin").onclick=()=>plusMin(-1);
-document.getElementById("plusMin").onclick=()=>plusMin(1);
-document.getElementById("minusRnd").onclick=()=>plusRnd(-1);
-document.getElementById("plusRnd").onclick=()=>plusRnd(1);
-document.addEventListener("keydown",e=>{
- if(e.key==="Enter"||e.key===" ")startPause();
- else if(e.key==="Escape"||e.key==="Backspace")resetAll();
- else if(e.key==="0")fs();
- else if(e.key==="ArrowUp")plusMin(1);
- else if(e.key==="ArrowDown")plusMin(-1);
- else if(e.key==="ArrowRight")plusRnd(1);
- else if(e.key==="ArrowLeft")plusRnd(-1);
-});
-drawUI();
-</script>
+    /* ==== ui helpers ==== */
+    function fmt(s) { s = Math.max(0, Math.floor(s)); let m = Math.floor(s / 60), ss = ("0" + (s % 60)).slice(-2); return `${("0" + m).slice(-2)}:${ss}`; }
+    function tint() {
+      if (phase === "ready" || phase === "done") return "#9aa0a6";
+      if (phase === "pre") return "#9b5de5";
+      if (phase === "run") { if (remain <= 10) return "#ff3b30"; if (remain <= 30) return "#ffae00"; return "#1db954"; }
+      if (phase === "break") { if (remain <= 10) return "#9b5de5"; return "#0091ff"; }
+      return "#9aa0a6";
+    }
+    /* precise 0° at time-out (avoid tiny sliver) */
+    function setDegFor(total) {
+      const eps = 0.001;
+      const frac = Math.max(0, Math.min(1, remain / total));
+      const deg = (frac <= eps) ? 0 : Math.round(360 * frac);
+      document.documentElement.style.setProperty("--deg", deg + "deg");
+    }
+    function drawUI() {
+      // time + labels
+      timeEl.textContent = fmt(remain);
+      ml.textContent = fmt(matchSec);
+      rl.textContent = rounds;
+      bl.textContent = fmt(breakSec);
+
+      // title + color
+      titleEl.textContent = phase === "pre" ? "GET READY" : phase === "run" ? "FIGHT" : phase === "break" ? "REST" : phase === "done" ? "FINISHED" : "READY";
+      document.documentElement.style.setProperty("--tint", tint());
+
+      // wedge (use exact 0 when expired)
+      const total = phase === "run" ? matchSec : phase === "break" ? breakSec : phase === "pre" ? pre : 1;
+      setDegFor(total);
+
+      // urgency animation
+      document.body.classList.toggle("urgent", (phase === "run" || phase === "break") && remain <= 10);
+
+      // START ⇄ PAUSE toggle (and Restart when done)
+      startBtn.textContent = running ? "Pause" : (phase === "done" ? "Restart" : "Start");
+    }
+
+    /* ==== loop ==== */
+    function loop(ts) {
+      if (!running) return;
+      if (!last) last = ts;
+      const dt = (ts - last) / 1000; last = ts;
+      remain -= dt; if (remain < 0) remain = 0;
+
+      // one frame at exact 0° before switching phases
+      if (remain === 0) {
+        drawUI();  // show 0° precisely
+        if (phase === "pre") { bell(); phase = "run"; remain = matchSec; last = ts; }
+        else if (phase === "run") { bell(); round++; if (round > rounds) { phase = "done"; running = false; } else { phase = "break"; remain = breakSec; last = ts; } }
+        else if (phase === "break") { bell(); phase = "run"; remain = matchSec; last = ts; }
+      }
+
+      drawUI();
+      raf = requestAnimationFrame(loop);
+    }
+
+    /* ==== controls ==== */
+    function startPause() {
+      if (running) {
+        running = false;
+      } else {
+        if (phase === "ready" || phase === "done") { phase = "pre"; remain = pre; round = 1; }
+        running = true; last = 0; raf = requestAnimationFrame(loop);
+      }
+      drawUI();
+    }
+    function resetAll() { running = false; phase = "ready"; remain = matchSec; round = 1; drawUI(); }
+    function plusMin(n) { matchSec = Math.max(60, matchSec + n * 60); if (phase === "ready") remain = matchSec; drawUI(); }
+    function plusRnd(n) { rounds = Math.max(1, rounds + n); drawUI(); }
+    function fs() { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+
+    document.getElementById("startPause").onclick = startPause;
+    document.getElementById("reset").onclick = resetAll;
+    document.getElementById("fullscreen").onclick = fs;
+    document.getElementById("minusMin").onclick = () => plusMin(-1);
+    document.getElementById("plusMin").onclick = () => plusMin(1);
+    document.getElementById("minusRnd").onclick = () => plusRnd(-1);
+    document.getElementById("plusRnd").onclick = () => plusRnd(1);
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") startPause();
+      else if (e.key === "Escape" || e.key === "Backspace") resetAll();
+      else if (e.key === "0") fs();
+      else if (e.key === "ArrowUp") plusMin(1);
+      else if (e.key === "ArrowDown") plusMin(-1);
+      else if (e.key === "ArrowRight") plusRnd(1);
+      else if (e.key === "ArrowLeft") plusRnd(-1);
+    });
+
+    /* init */
+    drawUI();
+  </script>
 </body>
+
 </html>
