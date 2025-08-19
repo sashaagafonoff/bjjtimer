@@ -5,50 +5,92 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>BJJ Timer (TV)</title>
 <style>
-  :root { --bg:#000; --fg:#fff; --fight:#1db954; --rest:#ffae00; --end:#ff3b30; --muted:#9aa0a6; }
+  :root {
+    --bg:#000; --fg:#fff; --fight:#1db954; --rest:#ffae00; --end:#ff3b30; --muted:#9aa0a6;
+    --track:#141414; --trail:#262626;
+  }
   html,body { height:100%; margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
-  .wrap { position:relative; display:flex; flex-direction:column; height:100%; gap:2vh; padding:2vh 3vw; overflow:hidden; }
+  .wrap { position:relative; display:flex; flex-direction:column; height:100%; gap:1.5vh; padding:2vh 3vw; overflow:hidden; }
 
-  .topbar { display:flex; justify-content:space-between; align-items:center; font-size:2.6vh; color:var(--muted); z-index:2; }
+  /* --- Stage (ring + logo, centered) --- */
   .stage { flex:1; display:flex; align-items:center; justify-content:center; z-index:1; }
-
-  /* Ring + logo under the overlay */
   .ring {
     position: relative;
     width:min(70vh,80vw); height:min(70vh,80vw);
     border-radius:50%;
-    border:1.2vh solid #333; box-shadow:inset 0 0 0 1.2vh #111;
-    background: conic-gradient(var(--fight) 0deg, #222 0deg);
     overflow:hidden;
+    /* Base track (dark), the progress sweep is drawn by .ring::before */
+    background: radial-gradient(circle at 50% 50%, #000 0 62%, transparent 62.1%),
+                conic-gradient(var(--trail) 0turn, var(--trail) 1turn);
+    box-shadow: 0 0 0 1.2vh #111 inset, 0 0 30px rgba(0,0,0,.6) inset;
   }
-  .ring .logo { position:absolute; inset:0; margin:auto; width:120%; height:auto; opacity:.85; pointer-events:none; }
-  .ring .badge { position:absolute; left:0; right:0; bottom:6%; text-align:center; font-size:3vh; opacity:.9; }
+  /* High-contrast sweeping wedge (animation readability) */
+  .ring::before{
+    content:"";
+    position:absolute; inset:0;
+    background: conic-gradient(var(--fight) var(--deg,0deg), var(--track) var(--deg,0deg));
+    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
+            mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
+  }
+  /* Subtle tick marks every 10% to aid readability */
+  .ring::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      conic-gradient(from 0deg, rgba(255,255,255,.08) 0deg 2deg, transparent 2deg 36deg);
+    background-size: 36deg 36deg;  /* 10 ticks (360/10=36deg) */
+    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
+            mask: radial-gradient(circle at 50% 50%, transparent 0 62%, #000 62.1%);
+    pointer-events:none;
+  }
 
-  .subinfo { text-align:center; margin-top:1vh; font-size:3.5vh; color:var(--muted); z-index:2; }
+  /* Perfectly centered logo */
+  .logo {
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:40%; height:auto; opacity:.9; pointer-events:none;
+  }
 
-  /* Primary controls above settings */
-  .controls { display:flex; justify-content:center; gap:2vw; flex-wrap:wrap; margin-top:1vh; z-index:2; }
+  /* BIG status text in-ring */
+  .badge {
+    position:absolute; left:50%; bottom:8%; transform:translateX(-50%);
+    text-align:center; font-weight:900; letter-spacing:.02em;
+    font-size: clamp(4vh, 5vw, 8vh);
+    text-shadow: 0 0 14px rgba(0,0,0,.65);
+  }
+
+  /* Round info under stage */
+  .subinfo { text-align:center; margin-top:.5vh; font-size:3.8vh; color:var(--muted); z-index:2; }
+
+  /* Primary controls */
+  .controls { display:flex; justify-content:center; gap:2vw; flex-wrap:wrap; margin-top:.5vh; z-index:2; }
   .controls button, .settings button {
     font-size:3.2vh; padding:1vh 2vw; background:#111; color:#fff; border:1px solid #333; border-radius:.8vh;
   }
   .controls button:active, .settings button:active { transform:scale(.98); }
 
   /* Settings */
-  .settings { display:flex; justify-content:center; gap:4vw; flex-wrap:wrap; align-items:flex-end; margin-top:1vh; z-index:2; }
+  .settings { display:flex; justify-content:center; gap:4vw; flex-wrap:wrap; align-items:flex-end; margin-top:.5vh; z-index:2; }
   .settings .group { text-align:center; }
   .settings .label { font-size:2.4vh; color:var(--muted); }
   .settings .value { font-size:4vh; margin:.4vh 0 1vh; }
 
-  /* Full-screen giant time overlay */
+  /* Giant full-screen timer overlay — fixed width monospace to avoid jitter */
   .timeOverlay {
     position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
     pointer-events:none; z-index:3;
-    font-weight:900; line-height:1; letter-spacing:.02em; font-variant-numeric:tabular-nums;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Roboto Mono", "DM Mono", monospace;
+    font-weight:900; line-height:1; letter-spacing:0; font-variant-numeric: tabular-nums;
     font-size: clamp(22vh, 28vw, 60vh);
     opacity:.6;
     text-shadow: 0 0 25px rgba(0,0,0,.7), 0 0 60px rgba(0,0,0,.35);
     color:#fff; /* paused/inactive default */
   }
+  /* Fix total width so digits never shift horizontally (we use MM:SS max) */
+  .timeOverlay .fixed {
+    width: 5ch; text-align:center;  /* "MM:SS" = 5 characters */
+  }
+
+  /* State tints for overlay */
   .fighting .timeOverlay { color: var(--fight); }
   .resting  .timeOverlay { color: var(--rest); }
   .ended    .timeOverlay { color: var(--end); }
@@ -60,19 +102,45 @@
   .prebox { padding:3vh 5vw; border:2px solid #444; border-radius:1vh; background:#111; text-align:center; }
   .pretitle { font-size:4vh; color:#cde; margin-bottom:1vh; }
   .pretime { font-size:14vh; font-weight:800; }
+
+  /* Floating HUD on right */
+  .hud {
+    position: fixed; right: 2vw; top: 2vh; z-index: 5;
+    display:flex; flex-direction:column; gap:1vh; align-items:flex-end;
+  }
+  .hud .box {
+    background: rgba(0,0,0,.55);
+    border: 1px solid #333; border-radius: .8vh;
+    padding: 1.2vh 1.4vw; font-size: 2.6vh; color:#ddd;
+    backdrop-filter: blur(4px);
+    max-width: 30vw;
+  }
+  .hud .breaks { font-weight:700; color:#fff; }
+  .hud .tips { color:#cfd3d7; font-size: 2.4vh; line-height: 1.3; }
+
+  /* Dynamic ring color via body state (also used in ::before) */
+  .fighting .ring::before { background: conic-gradient(var(--fight) var(--deg,0deg), var(--track) var(--deg,0deg)); }
+  .resting  .ring::before { background: conic-gradient(var(--rest) var(--deg,0deg),  var(--track) var(--deg,0deg)); }
+  .ended    .ring::before { background: conic-gradient(var(--end) var(--deg,0deg),   var(--track) var(--deg,0deg)); }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="topbar">
-      <div>OK/Enter=Start/Pause • Back/Esc=Reset • 0=Fullscreen</div>
-      <div>Breaks: 1:00</div>
+  <!-- Floating HUD (right side) -->
+  <aside class="hud">
+    <div class="box breaks" id="breaksBox">Breaks: 1:00</div>
+    <div class="box tips">
+      OK/Enter = Start/Pause<br/>
+      Back/Esc = Reset<br/>
+      0 = Fullscreen<br/>
+      ▲/▼ = ±1 min &nbsp;•&nbsp; ◄/► = ±1 round
     </div>
+  </aside>
 
+  <div class="wrap">
     <div class="stage">
-      <div class="ring" id="ring">
-        <img src="Untitled.png" class="logo" alt="Logo" onerror="this.style.display='none'"/>
-        <div class="badge" id="phaseBadge">Ready</div>
+      <div class="ring" id="ring" style="--deg:0deg">
+        <img src="logo.png" class="logo" alt="Logo" onerror="this.style.display='none'"/>
+        <div class="badge" id="phaseBadge">READY</div>
       </div>
     </div>
 
@@ -105,11 +173,11 @@
       </div>
     </div>
 
-    <div class="foot">BJJ Timer • v0.6</div>
+    <div class="foot">BJJ Timer • v0.7</div>
   </div>
 
-  <!-- Giant full-screen timer -->
-  <div class="timeOverlay" id="clock">05:00</div>
+  <!-- Giant full-screen timer (fixed width monospace to stop jitter) -->
+  <div class="timeOverlay"><div class="fixed" id="clock">05:00</div></div>
 
   <!-- Pre-start overlay -->
   <div class="prestart" id="preOverlay" aria-hidden="true">
@@ -139,7 +207,7 @@ function beep(){ tone(1000,180,'sine',0.26); }
 function bell(){ tone(660,250,'triangle',0.32); setTimeout(()=>tone(440,350,'sine',0.26),40); setTimeout(()=>tone(880,200,'sine',0.18),60); }
 
 /* ===== Elements ===== */
-const clockEl=document.getElementById('clock');       // full-screen overlay time
+const clockEl=document.getElementById('clock');       // fixed-width inner div
 const roundsEl=document.getElementById('rounds');
 const badgeEl=document.getElementById('phaseBadge');
 const matchLenLbl=document.getElementById('matchLenLbl');
@@ -164,43 +232,46 @@ let remaining=matchSec, running=false;
 let rafId=null, lastTs=null;
 
 /* ===== Helpers ===== */
-function fmt(sec){ sec=Math.max(0,Math.floor(sec)); const m=Math.floor(sec/60), s=sec%60; return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
-function ringColor(){
-  if(phase==='pre') return '#8888ff';
-  if(phase==='run') return remaining<=10 ? '#ffae00' : '#1db954';  // ring turns amber in last 10s
-  if(phase==='break') return '#ffae00';
-  if(phase==='done') return '#ff3b30';
-  return '#222';
+function fmt(sec){
+  sec=Math.max(0,Math.floor(sec));
+  const m=Math.floor(sec/60), s=sec%60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; // "MM:SS"
 }
-function updateRing(){
+function progressDeg(){
   const total = phase==='run' ? matchSec : phase==='break' ? BREAK_SEC : phase==='pre' ? PRESTART_SEC : 1;
   const done = total - remaining;
-  const pct = Math.max(0,Math.min(1,done/total));
-  const deg = Math.floor(360*pct);
-  ringEl.style.background=`conic-gradient(${ringColor()} ${deg}deg, #222 ${deg}deg)`;
+  const pct = Math.max(0,Math.min(1, done/total));
+  return Math.floor(360*pct);
+}
+function updateRing(){
+  const deg = progressDeg();
+  ringEl.style.setProperty('--deg', deg+'deg');
 }
 
 /* ===== UI ===== */
 function updateUI(){
-  // time text
+  // Time text (fixed-width div avoids jitter)
   clockEl.textContent=fmt(remaining);
-  // small info
+
+  // Round + labels
   roundsEl.textContent=`Round ${Math.min(roundNum,roundsTotal)} / ${roundsTotal}` + (phase==='break'?'  (REST)':'');
   matchLenLbl.textContent=fmt(matchSec);
   roundsLbl.textContent=String(roundsTotal);
-  badgeEl.textContent=
-    phase==='pre'  ? 'Get Ready' :
-    phase==='run'  ? 'Fight'     :
-    phase==='break'? 'Rest'      :
-    phase==='done' ? 'Finished'  : 'Ready';
 
-  // overlay color via body classes
+  // Big status text
+  badgeEl.textContent=
+    phase==='pre'  ? 'GET READY' :
+    phase==='run'  ? 'FIGHT'     :
+    phase==='break'? 'REST'      :
+    phase==='done' ? 'FINISHED'  : 'READY';
+
+  // Body state classes (color the overlay + ring)
   document.body.classList.remove('fighting','resting','ended');
   if(phase==='run') document.body.classList.add('fighting');
   else if(phase==='break') document.body.classList.add('resting');
   else if(phase==='done') document.body.classList.add('ended');
 
-  // button labels + overlays
+  // Buttons + overlays
   btnStart.textContent = running ? 'Pause' : (phase==='done' ? 'Restart' : 'Start');
   preOverlay.style.display = (phase==='pre') ? 'flex' : 'none';
   preClock.textContent = fmt(remaining);
@@ -280,7 +351,7 @@ function resetAll(){
   updateUI();
 }
 function changeMinutes(d){
-  matchSec=Math.max(60,Math.min(20*60,matchSec+d*60));
+  matchSec=Math.max(60,Math.min(20*60,matchSec+d*60)); // 1–20 min
   if(phase==='ready'||phase==='done') remaining=matchSec;
   updateUI();
 }
