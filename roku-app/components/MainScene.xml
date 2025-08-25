@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<component name="MainScene" extends="Scene">
+  <script type="text/brightscript" uri="pkg:/components/MainScene.brs"/>
+
+  <children>
+    <!-- Solid black background -->
+    <Rectangle id="bg" width="1280" height="720" color="0x000000FF" />
+
+    <!-- Logo (top center) -->
+    <Poster id="logo" uri="pkg:/images/logo.png"
+            translation="[640,0]"    width="800" height="800"
+            loadDisplayMode="scaleToFit"  scaleRotateCenter="[0.5,0.5]" />
+
+    <!-- BIG Round header (top) -->
+    <Label id="round"
+           translation="[640,160]"
+           width="1200" height="80"
+           horizAlign="center"
+           text="ROUND 1 / 5" />
+
+    <!-- HUGE clock (dominates screen) -->
+    <Label id="clock"
+           translation="[640,80]"
+           width="1200" height="600"
+           horizAlign="center"
+           text="05:00" />
+
+    <!-- Phase (under clock) -->
+    <Label id="phase"
+           translation="[640,460]"
+           width="1200" height="60"
+           horizAlign="center"
+           text="IDLE" />
+
+    <!-- Small config values (bottom) -->
+    <Label id="roundLen"
+           translation="[640,570]"
+           width="600" height="40"
+           horizAlign="center"
+           text="ROUND: 05:00" />
+    <Label id="restLen"
+           translation="[640,610]"
+           width="600" height="40"
+           horizAlign="center"
+           text="REST: 01:00" />
+
+    <!-- Hints (bottom-left) -->
+    <Label id="hints"
+           translation="[60, 660]"
+           width="1160" height="40"
+           horizAlign="left"
+           text="OK/Play=Start/Pause | Back=Reset | Up/Down=Round ±15s | Left/Right=Rounds ±1 | Rev/Fwd=Rest ±5s" />
+
+    <!-- Audio + timers -->
+    <Audio id="beep"/>
+    <Timer id="ticker" duration="1.0" repeat="true" />
+    <Timer id="flashTimer" duration="0.35" repeat="false" />
+  </children>
+</component>

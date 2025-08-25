@@ -1,0 +1,17 @@
+{
+  "host": "192.168.68.112",       
+  "username": "rokudev",
+  "password": "ugaz", 
+  "rootDir": ".",
+  "files": [
+    "manifest",
+    "source/*",
+    "components/MainScene.xml",
+    "components/MainScene.brs",
+    "fonts/**/*",
+    "images/**/*",
+    "sounds/**/*"
+  ]
+
+
+}

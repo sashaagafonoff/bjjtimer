@@ -1,0 +1,10 @@
+{
+  "name": "bjj-timer-roku",
+  "private": true,
+  "scripts": {
+    "deploy": "npx roku-deploy --retainStagingFolder=false --retainPackagerOutput=false"
+  },
+  "devDependencies": {
+    "roku-deploy": "^3.10.0"
+  }
+}
