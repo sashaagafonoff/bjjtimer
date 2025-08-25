@@ -1,0 +1,10 @@
+# Roku app build artifacts
+/roku-app/node_modules/
+/roku-app/out/
+
+# Logs / misc
+*.log
+
+# Local config/secrets
+config.json
+pwd and key.txt
