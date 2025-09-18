@@ -1,0 +1,10 @@
+<component name="MainScene" extends="Scene">
+  <children>
+    <Label
+      id="hello"
+      text="Hello World!"
+      translation="[200,200]"
+      font="font:MediumSystemFont"
+      />
+  </children>
+</component>

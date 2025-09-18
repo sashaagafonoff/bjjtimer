@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<component name="PerimeterProgress" extends="Group">
+  <interface>
+    <field id="progress" type="float" value="1.0" onChange="redraw" />
+    <field id="tint" type="string" value="#1db954" onChange="redraw" />
+    <field id="size" type="float" value="720" onChange="resize" />
+    <field id="thickness" type="float" value="60" onChange="resize" />
+  </interface>
+
+  <children>
+    <!-- Base track (dark) -->
+    <rectangle id="track" color="#141414" />
+    <!-- Remaining perimeter as 4 segments (drawn clockwise) -->
+    <rectangle id="top" />
+    <rectangle id="right" />
+    <rectangle id="bottom" />
+    <rectangle id="left" />
+  </children>
+
+  <script type="text/brightscript"><![CDATA[
+    function init()
+      m.top.observeField("progress", "redraw")
+      m.top.observeField("tint", "redraw")
+      m.top.observeField("size", "resize")
+      m.top.observeField("thickness", "resize")
+      m.track = m.top.findNode("track")
+      m.segTop = m.top.findNode("top")
+      m.segRight = m.top.findNode("right")
+      m.segBottom = m.top.findNode("bottom")
+      m.segLeft = m.top.findNode("left")
+      resize()
+      redraw()
+    end function
+
+    function resize()
+      s = m.top.size
+      t = m.top.thickness
+      m.track.width = s : m.track.height = s
+      m.track.translation = [0,0]
+      m.segTop.height = t    : m.segTop.translation = [0,0]
+      m.segRight.width = t   : m.segRight.translation = [s - t, 0]
+      m.segBottom.height = t : m.segBottom.translation = [0, s - t]
+      m.segLeft.width = t    : m.segLeft.translation = [0, 0]
+      redraw()
+    end function
+
+    function redraw()
+      s = m.top.size : t = m.top.thickness
+      col = m.top.tint
+      perim = (s - t) * 2 + (s - t) * 2    ' total around inner square
+      remain = perim * m.top.progress
+      ' reset colors/vis
+      for each n in [m.segTop, m.segRight, m.segBottom, m.segLeft]
+        n.color = col
+        n.visible = false
+      end for
+
+      ' fill clockwise: top -> right -> bottom -> left
+      innerLen = s - t
+      pos = remain
+
+      ' top
+      fillTop = min(innerLen, pos) : pos -= fillTop
+      if fillTop > 0 then
+        m.segTop.visible = true
+        m.segTop.width = fillTop + t  ' include corner thickness visually
+        m.segTop.height = t
+      end if
+
+      ' right
+      fillRight = min(innerLen, max(0, pos)) : pos -= fillRight
+      if fillRight > 0 then
+        m.segRight.visible = true
+        m.segRight.height = fillRight + t
+        m.segRight.width = t
+      end if
+
+      ' bottom (right-to-left)
+      fillBottom = min(innerLen, max(0, pos)) : pos -= fillBottom
+      if fillBottom > 0 then
+        m.segBottom.visible = true
+        m.segBottom.width = fillBottom + t
+        m.segBottom.height = t
+        m.segBottom.translation = [ (s - (fillBottom + t)), s - t ]
+      end if
+
+      ' left (bottom-to-top)
+      fillLeft = min(innerLen, max(0, pos))
+      if fillLeft > 0 then
+        m.segLeft.visible = true
+        m.segLeft.height = fillLeft + t
+        m.segLeft.width = t
+        m.segLeft.translation = [ 0, (s - (fillLeft + t)) ]
+      end if
+    end function
+  ]]></script>
+</component>
