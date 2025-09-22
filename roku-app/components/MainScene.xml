@@ -11,6 +11,10 @@
             translation="[640,0]"    width="800" height="800"
             loadDisplayMode="scaleToFit"  scaleRotateCenter="[0.5,0.5]" />
 
+    <Poster id="logoMini" uri="pkg:/images/logo.png"
+            translation="[20,0]"    width="220" height="220"
+            loadDisplayMode="scaleToFit"  scaleRotateCenter="[0,0]" />
+
     <!-- BIG Round header (top) -->
     <Label id="round"
            translation="[640,160]"
@@ -49,7 +53,7 @@
            translation="[60, 660]"
            width="1160" height="40"
            horizAlign="left"
-           text="OK/Play=Start/Pause | Back=Reset | Up/Down=Round ±15s | Left/Right=Rounds ±1 | Rev/Fwd=Rest ±5s" />
+           text="OK/Play=Start/Pause | Back=Reset | Replay=Restart Round | Up/Down=Round ±15s | Left/Right=Rounds ±1 | Rev/Fwd=Rest ±5s" />
 
     <!-- Audio + timers -->
     <Audio id="beep"/>

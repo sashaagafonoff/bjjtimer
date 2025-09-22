@@ -39,11 +39,6 @@ sub RunUserInterface()
   port   = CreateObject("roMessagePort")
   screen.SetMessagePort(port)
 
-  ' Keep the TV awake during training (your step #3)
-  if screen <> invalid and screen.SetAllowScreensaver <> invalid then
-    screen.SetAllowScreensaver(false)
-  end if
-
   scene = screen.CreateScene("MainScene")
   screen.Show()
 
